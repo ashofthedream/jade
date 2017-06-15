@@ -20,6 +20,10 @@ public class SourceCode {
     }
 
     public String getString(int len) {
+        return getString(index, len);
+    }
+
+    public String getString(int index, int len) {
         return source.substring(index, index + len);
     }
 
@@ -53,6 +57,21 @@ public class SourceCode {
 
         return source.substring(0, i);
     }
+
+
+    public int getIndex() {
+        return index;
+    }
+
+
+    public Location getLocation() {
+        return new Location(1, index);
+    }
+
+    public String getSource() {
+        return source;
+    }
+
 
 
     @Override

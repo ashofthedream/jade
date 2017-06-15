@@ -1,28 +1,44 @@
 package ashes.of.jade.lang;
 
-enum LexemType {
+
+
+public enum LexemType {
     Whitespace(1),
+    NewLine(1),
     Var(3),
     Print(5),
     Out(3),
 
-    CallMap(3), CallReduce(6),
+    Map(3), Reduce(6),
 
     Comma(1),
     Arrow(2),
 
-    Plus(1), Minus(1), Multiply(1), Divide(1), Caret(1),
+    Plus(1), Minus(1), Multiply(1), Divide(1), Remainder(1), Power(1),
 
     Assign(1),
-    QuotationMark(1),
 
-    Number(0), FloatPointNumber(0),
+    IntegerNumber(0), DoubleNumber(0),
+    String(0), Seq(0),
+
     Identifier(0),
 
-    LeftBrace(1),
-    RightBrace(1),
-    LeftParenthesis(1),
-    RightParenthesis(1);
+    LOAD(0),
+    STORE(0),
+
+    CurlyOpen(1),
+    CurlyClose(1),
+    ParentOpen(1),
+    ParentClose(1),
+
+
+    Indent(1),
+    Dedent(1),
+
+    Eof(0),
+
+    Program(0);
+
 
 
     public int len;

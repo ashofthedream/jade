@@ -1,27 +1,28 @@
 package ashes.of.jade.lang;
 
-class ParseException extends RuntimeException {
+
+
+public class ParseException extends RuntimeException {
 
     private final String code;
-    private final int line;
-    private final int position;
+    private final Location location;
 
     public ParseException(String message, SourceCode it) {
         super(message);
         this.code = it.getCurrentLineSource();
-        this.line = it.getCurrentLineNumber();
-        this.position = it.getCurrentPosition();
+        this.location = it.getLocation();
+    }
+
+    public ParseException(String message, String code, Location location) {
+        super(message);
+        this.code = code;
+        this.location = location;
     }
 
     public String getCode() {
         return code;
     }
-
-    public int getLine() {
-        return line;
-    }
-
-    public int getPosition() {
-        return position;
+    public Location getLocation() {
+        return location;
     }
 }
