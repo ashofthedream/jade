@@ -9,6 +9,11 @@ public class IntNode implements Node {
     }
 
     @Override
+    public LexemType getType() {
+        return LexemType.IntegerNumber;
+    }
+
+    @Override
     public boolean isInteger() {
         return true;
     }

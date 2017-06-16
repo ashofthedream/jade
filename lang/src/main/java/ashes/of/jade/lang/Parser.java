@@ -4,6 +4,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 
+import static ashes.of.jade.lang.LexemType.Out;
 
 
 public class Parser {
@@ -30,84 +31,85 @@ public class Parser {
      * print "pi = "
      * out pi
      */
-    public Node parse() {
+    public Deque<Node> parse() {
+        Deque<Node> stack = new ArrayDeque<>();
+        Deque<Node> out = new ArrayDeque<>();
 
-        while (hasNext()) {
-            Lexem lexem = next();
-            System.out.println(lexem);
-
-            if (lexem.is(LexemType.Var)) {
-                Lexem identifier = ensureNext(LexemType.Identifier);
-                Lexem assign = ensureNext(LexemType.Assign);
-                Node node = new VarNode(identifier.getContent());
-
-                nodes.push(node);
+        for (Lexem lexem : lexems) {
+            if (lexem.is(LexemType.IntegerNumber)) {
+                out.push(parseInt(lexem));
             }
 
-            if (lexem.is(LexemType.IntegerNumber)) {
-                IntNode node = parseInt(lexem);
+            if (lexem.is(LexemType.DoubleNumber)) {
+                out.push(parseDouble(lexem));
+            }
 
-                Node pop = nodes.pop();
-                if (pop.is(LexemType.Var)) {
-                    nodes.push(node);
-                    nodes.push(pop);
-//                    System.out.println("push: " + pop);
-                    continue;
-                }
+            if (lexem.is(LexemType.String)) {
+                out.push(parseString(lexem));
+            }
 
-//                if ()
+            if (lexem.is(LexemType.Map) || lexem.is(LexemType.Reduce) || lexem.is(Out)) {
+                stack.push(new LexemNode(lexem));
+            }
 
-                throw new RuntimeException("Unexpected node " + node + " |  " + nodes);
+
+            if (lexem.is(LexemType.Comma)) {
+                while (!stack.isEmpty() && !stack.peek().is(LexemType.ParentOpen))
+                    out.push(stack.pop());
             }
 
             if (isOperator(lexem)) {
-                OpExprNode node = new OpExprNode(lexem);
+                while (!stack.isEmpty() && isOperator(stack.peek()) && isHighPrecedence(stack.peek(), lexem))
+                    out.push(stack.pop());
 
-                Deque<Node> stack = new ArrayDeque<>();
-                while (!nodes.isEmpty()) {
-                    Node pop = nodes.pop();
-
-
-
-//                    if (stack.isEmpty() && !(pop.is(LexemType.IntegerNumber) || pop.is(LexemType.DoubleNumber) || pop.is(LexemType.Identifier)))
-//                        throw new IllegalStateException("Expected at least one id|double|int found " + pop + " | " + nodes);
-                    stack.push(pop);
-                }
-
-//                Node pop = nodes.pop();
-//                if (pop.is(LexemType.Var)) {
-//                    stack.push(pop);
-//                    pop = nodes.pop();
-//                }
-//
-//                while (!nodes.isEmpty()) {
-//
-//                }
-//
-//                while (pop.is(LexemType.IntegerNumber) || pop.is(LexemType.DoubleNumber) || pop.is(LexemType.Identifier)) {
-//                    stack.push(pop)
-//                    node.add(pop);
-//                }
-//
-//                if (x < 1) {
-//                    throw new RuntimeException("Unexpected node " + node + " | " + nodes);
-//                }
-
-
-                while (!stack.isEmpty()) {
-                    nodes.push(stack.pop());
-                }
-
-                throw new RuntimeException("Unexpected node " + node + " " + nodes);
-
-
+                stack.push(new LexemNode(lexem));
             }
 
-//            if (lexem.is())
+
+            if (lexem.is(LexemType.ParentOpen)) {
+                stack.push(new LexemNode(lexem));
+            }
+
+            if (lexem.is(LexemType.ParentClose)) {
+                while (!stack.isEmpty() && !stack.peek().is(LexemType.ParentOpen))
+                    out.push(stack.pop());
+
+                stack.pop();
+                if (!stack.isEmpty() && isFunction(stack.peek()))
+                    out.push(stack.pop());
+            }
+
+
+            if (lexem.is(LexemType.NewLine)) {
+                while (!stack.isEmpty()) {
+                    Node pop = stack.pop();
+                    out.push(pop);
+                }
+
+                out.push(new LexemNode(lexem));
+            }
+
+            if (lexem.is(LexemType.Var)) {
+                stack.push(new LexemNode(lexem));
+            }
+
+            if (lexem.is(LexemType.Identifier)) {
+                if (!stack.isEmpty() && stack.peek().is(LexemType.Var)) {
+                    stack.pop();
+                    stack.push(new LexemNode(new Lexem(LexemType.STORE, lexem.getLocation(), lexem.getContent())));
+                    continue;
+                }
+
+                out.push(new LexemNode(new Lexem(LexemType.LOAD, lexem.getLocation(), lexem.getContent())));
+            }
         }
 
-        return new ProgramNode(nodes);
+        while (!stack.isEmpty())
+            out.push(stack.pop());
+
+        return out;
     }
+
 
 
     private StringNode parseString(Lexem lexem) {
@@ -146,25 +148,24 @@ public class Parser {
             default:        return 0;
         }
     }
+    private boolean isHighPrecedence(Node a, Lexem b) {
+        return precedenceOf(a.getType()) >= precedenceOf(b.getType());
+    }
 
     private boolean isHighPrecedence(LexemType a, LexemType b) {
         return precedenceOf(a) >= precedenceOf(b);
     }
 
     private boolean isOperator(Lexem lexem) {
-        return isOperator(lexem.getType());
+        return lexem.getType().isOperator();
     }
 
-    private boolean isOperator(LexemType lexem) {
-        return  lexem == LexemType.Plus ||
-                lexem == LexemType.Minus ||
-                lexem == LexemType.Multiply ||
-                lexem == LexemType.Divide ||
-                lexem == LexemType.Power;
+    private boolean isOperator(Node node) {
+        return node.getType().isOperator();
     }
 
-    private boolean isFunction(Lexem lexem) {
-        return isFunction(lexem.getType());
+    private boolean isFunction(Node node) {
+        return isFunction(node.getType());
     }
 
     private boolean isFunction(LexemType type) {
@@ -221,7 +222,4 @@ public class Parser {
         throw new RuntimeException(String.format(msg, args));
     }
 
-    public Deque<Node> getNodes() {
-        return nodes;
-    }
 }

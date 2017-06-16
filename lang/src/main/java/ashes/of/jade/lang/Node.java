@@ -58,8 +58,3 @@ public interface Node {
         return null;
     }
 }
-
-
-class ParentOpenNode implements Node {
-
-}

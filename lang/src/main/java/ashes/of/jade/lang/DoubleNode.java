@@ -9,8 +9,13 @@ public class DoubleNode implements Node {
     }
 
     @Override
-    public boolean isInteger() {
-        return false;
+    public LexemType getType() {
+        return LexemType.DoubleNumber;
+    }
+
+    @Override
+    public boolean isDouble() {
+        return true;
     }
 
     @Override

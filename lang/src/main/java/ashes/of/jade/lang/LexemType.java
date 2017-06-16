@@ -41,9 +41,18 @@ public enum LexemType {
 
 
 
+
     public int len;
 
     LexemType(int len) {
         this.len = len;
+    }
+
+    public boolean isOperator() {
+        return  this == Plus ||
+                this == Minus ||
+                this == Multiply ||
+                this == Divide ||
+                this == Power;
     }
 }
