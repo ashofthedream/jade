@@ -1,46 +1,21 @@
 package ashes.of.jade.lang;
 
-public class DoubleNode implements Node {
+public class DoubleNode extends Node {
 
     private double val;
 
-    public DoubleNode(double val) {
+    public DoubleNode(Lexem lexem, double val) {
+        super(lexem);
         this.val = val;
     }
 
     @Override
-    public LexemType getType() {
-        return LexemType.DoubleNumber;
-    }
-
-    @Override
-    public boolean isDouble() {
-        return true;
-    }
-
-    @Override
-    public String asString() {
-        return String.valueOf(val);
-    }
-
-    @Override
-    public double asDouble() {
+    public double toDouble() {
         return val;
     }
 
     @Override
-    public long asInteger() {
-        return Math.round(val);
-    }
-
-    @Override
-    public Node eval() {
-        return this;
-    }
-
-
-    @Override
     public String toString() {
-        return "DoubleNode{" + val + '}';
+        return String.valueOf(toDouble());
     }
 }

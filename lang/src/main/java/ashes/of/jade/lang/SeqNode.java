@@ -1,19 +1,18 @@
 package ashes.of.jade.lang;
 
-public class SeqNode implements Node {
+public class SeqNode extends Node {
 
-    @Override
-    public LexemType getType() {
-        return LexemType.Seq;
+    private final Node l;
+    private final Node r;
+
+    public SeqNode(Lexem lexem, Node l, Node r) {
+        super(lexem);
+        this.l = l;
+        this.r = r;
     }
 
     @Override
-    public boolean isSeq() {
-        return true;
-    }
-
-    @Override
-    public Node eval() {
-        return null;
+    public String toString() {
+        return "SEQ{" + l + ", " + r + "}";
     }
 }

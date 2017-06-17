@@ -72,7 +72,7 @@ public class Lexer {
             lexems.add(lexem);
         }
 
-        lexems.add(new Lexem(LexemType.Eof, it.getLocation()));
+        lexems.add(new Lexem(LexemType.EOF, it.getLocation()));
         return lexems;
     }
 

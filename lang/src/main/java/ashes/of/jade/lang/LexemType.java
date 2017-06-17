@@ -6,6 +6,7 @@ public enum LexemType {
     Whitespace(1),
     NewLine(1),
     Var(3),
+
     Print(5),
     Out(3),
 
@@ -31,16 +32,10 @@ public enum LexemType {
     ParentOpen(1),
     ParentClose(1),
 
-
-    Indent(1),
-    Dedent(1),
-
-    Eof(0),
-
-    Program(0);
+    LAMBDA(0),
 
 
-
+    EOF(0);
 
     public int len;
 

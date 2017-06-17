@@ -1,60 +1,74 @@
 package ashes.of.jade.lang;
 
 
-public interface Node {
+import java.util.Deque;
 
-    default void setLocation(Location location) {
+public class Node {
+
+    protected final Lexem lexem;
+
+    public Node(Lexem lexem) {
+        this.lexem = lexem;
     }
 
-    default Location getLocation() {
-        return null;
+    public Lexem getLexem() {
+        return lexem;
     }
 
-    default LexemType getType() {
-        return null;
+    public Location getLocation() {
+        return lexem.getLocation();
     }
 
-    default boolean is(LexemType type) {
+    public LexemType getType() {
+        return lexem.getType();
+    }
+
+    public boolean is(LexemType type) {
         return type == getType();
     }
 
-    default void add(Node node) {
-
+    public boolean isClosure() {
+        return is(LexemType.LAMBDA);
     }
 
-    default boolean isSeq() {
-        return false;
+    public boolean isSeq() {
+        return is(LexemType.Seq);
     }
 
-    default boolean isString() {
-        return false;
+    public boolean isString() {
+        return is(LexemType.String);
     }
 
-    default boolean isDouble() {
-        return false;
+    public boolean isDouble() {
+        return is(LexemType.DoubleNumber);
     }
 
-    default boolean isInteger() {
-        return false;
+    public boolean isInteger() {
+        return is(LexemType.IntegerNumber);
     }
 
-    default Object asSeq() {
+    public Deque<Node> getNodes() {
         return null;
     }
 
-    default String asString() {
+    public Object asSeq() {
         return null;
     }
 
-    default long asInteger() {
+    public long toInteger() {
         return 0;
     }
 
-    default double asDouble() {
+    public double toDouble() {
         return 0;
     }
 
-    default Node eval() {
-        return null;
+    public String getContent() {
+        return lexem.getContent();
+    }
+
+    @Override
+    public String toString() {
+        return lexem.toString();
     }
 }

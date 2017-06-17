@@ -1,15 +1,16 @@
 package ashes.of.jade.lang;
 
-public class StringNode implements Node {
+public class StringNode extends Node {
 
     private String value;
 
-    public StringNode(String value) {
+    public StringNode(Lexem lexem, String value) {
+        super(lexem);
         this.value = value;
     }
 
     @Override
-    public boolean isString() {
-        return true;
+    public String toString() {
+        return value;
     }
 }

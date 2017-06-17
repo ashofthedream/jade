@@ -1,45 +1,21 @@
 package ashes.of.jade.lang;
 
-public class IntNode implements Node {
+public class IntNode extends Node {
 
     private long val;
 
-    public IntNode(long val) {
+    public IntNode(Lexem lexem, long val) {
+        super(lexem);
         this.val = val;
     }
 
     @Override
-    public LexemType getType() {
-        return LexemType.IntegerNumber;
-    }
-
-    @Override
-    public boolean isInteger() {
-        return true;
-    }
-
-    @Override
-    public String asString() {
-        return String.valueOf(val);
-    }
-
-    @Override
-    public double asDouble() {
+    public long toInteger() {
         return val;
-    }
-
-    @Override
-    public long asInteger() {
-        return val;
-    }
-
-    @Override
-    public Node eval() {
-        return this;
     }
 
     @Override
     public String toString() {
-        return "IntNode{" + val + '}';
+        return String.valueOf(toInteger());
     }
 }
