@@ -24,8 +24,7 @@ public class Parser {
         public Deque<Node> out = new ArrayDeque<>();
     }
 
-    private final List<State> scopes = new ArrayList<>();
-    private int currentScope;
+    private final Deque<State> scopes = new ArrayDeque<>();
 
     /**
      * expr ::= expr op expr | (expr) | identifier | { expr, expr } | number | map(expr, identifier -> expr) | reduce(expr, expr, identifier identifier -> expr)
@@ -41,17 +40,16 @@ public class Parser {
      * out pi
      */
     public Deque<Node> parse() {
-        currentScope = 0;
-        scopes.add(new State());
+        scopes.push(new State());
         System.out.printf("parse> %-25s %3s  %-100s %-100s %n", "lexem", "ST#", "STACK", "OUT");
 
         for (int i = 0; i < lexems.size(); i++) {
             Lexem lexem = lexems.get(i);
-            State current = scopes.get(currentScope);
+            State current = scopes.peek();
             Deque<Node> stack = current.stack;
             Deque<Node> out = current.out;
 
-            System.out.printf("parse> %-25s %3d  %-100s %-100s %n", lexem, currentScope, stack, out);
+            System.out.printf("parse> %-25s %3d  %-100s %-100s %n", lexem, scopes.size(), stack, out);
 
             if (lexem.is(LexemType.IntegerNumber)) {
                 out.push(parseInt(lexem));
@@ -102,13 +100,15 @@ public class Parser {
                     out.push(stack.pop());
 
                 
-                if (currentScope != 0 && stack.isEmpty()) {
+                if (scopes.size() > 1 && stack.isEmpty()) {
                     i--;
-                    System.out.printf("EOS^^^ %-25s %3d  %-100s %-100s %n", lexem, currentScope, stack, out);
-                    currentScope--;
+                    System.out.printf("EOS^^^ %-25s %3d  %-100s %-100s %n", lexem, scopes.size(), stack, out);
+                    System.out.println();
+
                     LambdaNode closure = current.closure;
                     closure.stack = out;
-                    scopes.get(currentScope).out.push(closure);
+                    scopes.pop();
+                    scopes.peek().out.push(closure);
                     continue;
                 }
 
@@ -141,8 +141,8 @@ public class Parser {
 
             if (lexem.is(LexemType.Arrow)) {
                 State closureState = new State();
-                currentScope++;
-                scopes.add(closureState);
+
+                scopes.push(closureState);
 
                 while (!out.isEmpty() && out.peek().is(LexemType.LOAD)) {
                     Node pop = out.pop();
@@ -169,8 +169,9 @@ public class Parser {
         }
 
 
-        Deque<Node> stack = scopes.get(0).stack;
-        Deque<Node> out = scopes.get(0).out;
+        State state = scopes.pop();
+        Deque<Node> stack = state.stack;
+        Deque<Node> out = state.out;
 
         while (!stack.isEmpty())
             out.push(stack.pop());

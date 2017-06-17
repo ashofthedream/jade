@@ -16,6 +16,11 @@ public class Lexem {
         this(type, location, "");
     }
 
+
+    public Lexem(LexemType type) {
+        this(type, new Location(0, 0), "");
+    }
+
     public LexemType getType() {
         return type;
     }

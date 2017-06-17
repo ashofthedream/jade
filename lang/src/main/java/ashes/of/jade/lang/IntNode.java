@@ -2,11 +2,15 @@ package ashes.of.jade.lang;
 
 public class IntNode extends Node {
 
-    private long val;
+    public long val;
 
     public IntNode(Lexem lexem, long val) {
         super(lexem);
         this.val = val;
+    }
+
+    public IntNode(long val) {
+        this(new Lexem(LexemType.IntegerNumber), val);
     }
 
     @Override

@@ -2,26 +2,34 @@ package ashes.of.jade.lang;
 
 import java.util.*;
 
+
 public class Interpreter {
 
-    private final Deque<Node> stack = new ArrayDeque<>();
-    private final List<Map<String, Node>> scopes = new ArrayList<>();
-    private int scope = 0;
+    public Deque<Node> eval(Deque<Node> nodes) {
+        return eval(new ArrayDeque<>(), new HashMap<>(), nodes);
+    }
 
+    public Deque<Node> eval(Deque<Node> stack, Deque<Node> nodes) {
+        return eval(stack, new HashMap<>(), nodes);
+    }
 
-    public void eval(Deque<Node> nodes) {
-        scopes.add(new HashMap<>());
+    public Deque<Node> eval(Deque<Node> stack, Map<String, Node>  scope, Deque<Node> nodes) {
+        System.out.println();
+        System.out.printf("HEAD> %-40s %-60s %-60s %s%n", "NODE", "SCOPE", "STACK", "INPUT");
+        System.out.printf("INPT> %-40s %-60s %-60s %s%n",     "", 0, stack, nodes);
+        System.out.printf("");
 
-        System.out.printf("eval> %-40s %-60s %-60s %s%n", "NODE", "SCOPE", "STACK", "INPUT");
-        while (!nodes.isEmpty()) {
-            Node node = nodes.removeLast();
+        Iterator<Node> it = nodes.descendingIterator();
+
+        while (it.hasNext()) {
+            Node node = it.next();
             if (node.is(LexemType.NewLine) || node.is(LexemType.EOF)) {
                 System.out.println();
                 System.out.println();
                 continue;
             }
 
-            System.out.printf("eval> %-40s %-60s %-60s %s%n", node, scopes.get(scope), stack, nodes);
+            System.out.printf("eval> %-40s %-60s %-60s %s%n", node, scope, stack, nodes);
 
             if (node.is(LexemType.IntegerNumber) || node.is(LexemType.DoubleNumber) || node.is(LexemType.String)) {
                 stack.push(node);
@@ -30,17 +38,17 @@ public class Interpreter {
 
             if (node.is(LexemType.STORE)) {
                 Node pop = stack.pop();
-                scopes.get(0).put(node.getContent(), pop);
+                scope.put(node.getContent(), pop);
             }
 
             if (node.is(LexemType.LOAD)) {
-                Node pop = scopes.get(0).get(node.getContent());
+                Node pop = scope.get(node.getContent());
                 stack.push(pop);
             }
 
             if (node.is(LexemType.Out)) {
                 Node pop = stack.pop();
-                System.out.println("\t\t\t" + pop);
+                System.out.println("\tOUT  \t\t" + pop);
             }
 
 
@@ -48,8 +56,11 @@ public class Interpreter {
                 Node lambda = stack.pop();
                 Node seq = stack.pop();
 
-                stack.push(seq);
-                System.out.println("invoke map " + seq + " " + lambda);
+                Node mapped = seq.isIntegerSeq() ?
+                        map(seq.toIntegerSeq(), lambda) :
+                        map(seq.toDoubleSeq(), lambda);
+
+                stack.push(mapped);
             }
 
             if (node.is(LexemType.Reduce)) {
@@ -57,8 +68,11 @@ public class Interpreter {
                 Node n = stack.pop();
                 Node seq = stack.pop();
 
-                stack.push(new IntNode(new Lexem(LexemType.IntegerNumber, node.getLocation(), ""), -1));
-                System.out.println("invoke reduce " + seq + ", " + n + ", " + lambda);
+                Node reduced = seq.isIntegerSeq() ?
+                        reduce(seq.toIntegerSeq(), n, lambda) :
+                        reduce(seq.toDoubleSeq(), n, lambda);
+
+                stack.push(reduced);
             }
 
             if (node.is(LexemType.LAMBDA)) {
@@ -74,7 +88,7 @@ public class Interpreter {
 
             if (node.is(LexemType.Print)) {
                 Node pop = stack.pop();
-                System.out.println("\t\t\t" + pop.toString());
+                System.out.println("\tPRINT\t\t" + pop.toString());
             }
 
             if (node.getType().isOperator()) {
@@ -83,12 +97,12 @@ public class Interpreter {
                 switch (node.getType()) {
                     case Plus:
                         if (l.isDouble() || r.isDouble()) {
-                            stack.push(new DoubleNode(l.getLexem(), r.toDouble() + l.toDouble()));
+                            stack.push(new DoubleNode(r.toDouble() + l.toDouble()));
                             break;
                         }
 
                         if (l.isInteger() && r.isInteger()) {
-                            stack.push(new IntNode(l.getLexem(), r.toInteger() + l.toInteger()));
+                            stack.push(new IntNode( r.toInteger() + l.toInteger()));
                             break;
                         }
 
@@ -96,12 +110,12 @@ public class Interpreter {
 
                     case Minus:
                         if (l.isDouble() || r.isDouble()) {
-                            stack.push(new DoubleNode(l.getLexem(), r.toDouble() - l.toDouble()));
+                            stack.push(new DoubleNode(r.toDouble() - l.toDouble()));
                             break;
                         }
 
                         if (l.isInteger() && r.isInteger()) {
-                            stack.push(new IntNode(l.getLexem(), r.toInteger() - l.toInteger()));
+                            stack.push(new IntNode(r.toInteger() - l.toInteger()));
                             break;
                         }
 
@@ -109,12 +123,12 @@ public class Interpreter {
 
                     case Multiply:
                         if (l.isDouble() || r.isDouble()) {
-                            stack.push(new DoubleNode(l.getLexem(), r.toDouble() * l.toDouble()));
+                            stack.push(new DoubleNode(r.toDouble() * l.toDouble()));
                             break;
                         }
 
                         if (l.isInteger() && r.isInteger()) {
-                            stack.push(new IntNode(l.getLexem(), r.toInteger() * l.toInteger()));
+                            stack.push(new IntNode(r.toInteger() * l.toInteger()));
                             break;
                         }
 
@@ -122,12 +136,12 @@ public class Interpreter {
 
                     case Divide:
                         if (l.isDouble() || r.isDouble()) {
-                            stack.push(new DoubleNode(l.getLexem(), r.toDouble() / l.toDouble()));
+                            stack.push(new DoubleNode(r.toDouble() / l.toDouble()));
                             break;
                         }
 
                         if (l.isInteger() && r.isInteger()) {
-                            stack.push(new IntNode(l.getLexem(), l.toInteger() / l.toInteger()));
+                            stack.push(new IntNode(l.toInteger() / l.toInteger()));
                             break;
                         }
 
@@ -135,7 +149,7 @@ public class Interpreter {
 
                     case Power:
 
-                        stack.push(new DoubleNode(l.getLexem(),  Math.pow(r.toDouble(), l.toDouble())));
+                        stack.push(new DoubleNode(Math.pow(r.toDouble(), l.toDouble())));
                         break;
 
                 }
@@ -143,12 +157,92 @@ public class Interpreter {
         }
 
 
+        System.out.printf("RET > %-40s %-60s %s%n", "", scope, stack);
         System.out.println();
         System.out.println();
-        System.out.printf("eval> %-40s %-60s %s%n", "", scopes.get(scope), stack);
+        return stack;
     }
 
+    private Node map(IntegerSeqNode seq, Node lambda) {
+        long[] l = null;
+        double[] d = null;
+        Deque<Node> stack = new ArrayDeque<>();
+        for (int i = 0; i < seq.seq.length; i++) {
+            stack.push(new IntNode(seq.seq[i]));
+            eval(stack, lambda.getNodes());
 
+            Node result = stack.pop();
+            if (l == null && d == null) {
+                if (result.isInteger())
+                    l = new long[seq.seq.length];
+
+                else if (result.isDouble())
+                    d = new double[seq.seq.length];
+
+                else
+                    throw new IllegalStateException("Int or Double expected");
+            }
+
+            if (l != null && result.isInteger())
+                l[i] = result.toInteger();
+
+            else if (d != null && result.isDouble())
+                d[i] = result.toDouble();
+
+            else
+                throw new IllegalStateException("Int or Double expected");
+        }
+
+        return l != null ?
+                new IntegerSeqNode(l) : new DoubleSeqNode(d);
+    }
+
+    private Node map(DoubleSeqNode seq, Node lambda) {
+        double[] d = new double[seq.seq.length];
+        Deque<Node> stack = new ArrayDeque<>();
+        for (int i = 0; i < seq.seq.length; i++) {
+            stack.push(new DoubleNode(new Lexem(LexemType.DoubleNumber), seq.seq[i]));
+            eval(stack, lambda.getNodes());
+
+            Node result = stack.pop();
+            if (!result.isDouble())
+                throw new IllegalStateException("Int or Double expected");
+
+            d[i] = result.toDouble();
+        }
+
+        return new DoubleSeqNode(d);
+    }
+
+    private Node reduce(IntegerSeqNode seq, Node n, Node lambda) {
+        Node acc = n;
+
+        Deque<Node> stack = new ArrayDeque<>();
+        for (int i = 1; i < seq.seq.length; i++) {
+            stack.push(acc);
+            stack.push(new IntNode(seq.seq[i]));
+            eval(stack, lambda.getNodes());
+
+            acc = stack.pop();
+        }
+
+        return acc;
+    }
+
+    private Node reduce(DoubleSeqNode seq, Node n, Node lambda) {
+        Node acc = n;
+
+        Deque<Node> stack = new ArrayDeque<>();
+        for (int i = 1; i < seq.seq.length; i++) {
+            stack.push(acc);
+            stack.push(new DoubleNode(seq.seq[i]));
+            eval(stack, lambda.getNodes());
+
+            acc = stack.pop();
+        }
+
+        return acc;
+    }
 
     public static void main(String... args) {
         String expr =
@@ -160,10 +254,12 @@ public class Interpreter {
 //                "var n = 2\n" +
 //                "var x = 0\n" +
 //                "var n = x + 500\n" +
-//                "var seq = {0, n + 100}\n" +
-//                "var sequence = map({0, n}, i -> (-1)^i / (2 * i + 1))\n" +
-                "var sequence = map({0, 5}, i -> (i * i) + 1)\n" +
-                "var pi = 3.1415 * reduce (sequence, 0, x y -> x + y)\n" +
+                "var seq = {4, 6}\n" +
+                "var sequence = map(seq, i -> i + 1)\n" +
+//                "var sequence = map({0, 3}, i -> (i * i) + 1)\n" +
+//                "var pi = 3.1415 * reduce (sequence, 0, x y -> x + y)\n" +
+//                "var pi = 1 * reduce(sequence, 1000, acc y -> acc + y)\n" +
+                "var pi = 1 * reduce(sequence, 1, acc y -> acc * y)\n" +
                 "print \"pi = \"\n" +
                 "out pi\n" +
                 "" ;

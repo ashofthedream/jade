@@ -15,29 +15,29 @@ public class Lexer {
         keywords.put(LexemType.NewLine, Pattern.compile("\\n"));
         keywords.put(LexemType.Whitespace, Pattern.compile("\\s"));
 
-        keywords.put(LexemType.Var, Pattern.compile("var"));
-        keywords.put(LexemType.Print, Pattern.compile("print"));
-        keywords.put(LexemType.Out, Pattern.compile("out"));
-        keywords.put(LexemType.Map, Pattern.compile("map"));
-        keywords.put(LexemType.Reduce, Pattern.compile("reduce"));
+        keywords.put(LexemType.Var,                 Pattern.compile("var"));
+        keywords.put(LexemType.Print,               Pattern.compile("print"));
+        keywords.put(LexemType.Out,                 Pattern.compile("out"));
+        keywords.put(LexemType.Map,                 Pattern.compile("map"));
+        keywords.put(LexemType.Reduce,              Pattern.compile("reduce"));
 
-        keywords.put(LexemType.Arrow, Pattern.compile("->"));
+        keywords.put(LexemType.Arrow,               Pattern.compile("->"));
 
-        keywords.put(LexemType.CurlyOpen, Pattern.compile("\\{"));
-        keywords.put(LexemType.CurlyClose, Pattern.compile("\\}"));
-        keywords.put(LexemType.ParentOpen, Pattern.compile("\\("));
-        keywords.put(LexemType.ParentClose, Pattern.compile("\\)"));
-        keywords.put(LexemType.Plus, Pattern.compile("\\+"));
-        keywords.put(LexemType.Minus, Pattern.compile("\\-"));
-        keywords.put(LexemType.Multiply, Pattern.compile("\\*"));
-        keywords.put(LexemType.Divide, Pattern.compile("\\/"));
-        keywords.put(LexemType.Power, Pattern.compile("\\^"));
+        keywords.put(LexemType.CurlyOpen,           Pattern.compile("\\{"));
+        keywords.put(LexemType.CurlyClose,          Pattern.compile("\\}"));
+        keywords.put(LexemType.ParentOpen,          Pattern.compile("\\("));
+        keywords.put(LexemType.ParentClose,         Pattern.compile("\\)"));
+        keywords.put(LexemType.Plus,                Pattern.compile("\\+"));
+        keywords.put(LexemType.Minus,               Pattern.compile("\\-"));
+        keywords.put(LexemType.Multiply,            Pattern.compile("\\*"));
+        keywords.put(LexemType.Divide,              Pattern.compile("\\/"));
+        keywords.put(LexemType.Power,               Pattern.compile("\\^"));
 
         keywords.put(LexemType.Assign,              Pattern.compile("\\="));
         keywords.put(LexemType.Comma,               Pattern.compile(","));
 
-        keywords.put(LexemType.DoubleNumber,    Pattern.compile("[0-9]+\\.[0-9]*"));
-        keywords.put(LexemType.IntegerNumber,              Pattern.compile("[0-9]+"));
+        keywords.put(LexemType.DoubleNumber,        Pattern.compile("[0-9]+\\.[0-9]*"));
+        keywords.put(LexemType.IntegerNumber,       Pattern.compile("[0-9]+"));
         keywords.put(LexemType.Identifier,          Pattern.compile("[A-Za-z][A-Za-z0-9_]*"));
         keywords.put(LexemType.String,              Pattern.compile("\".*\""));
     }

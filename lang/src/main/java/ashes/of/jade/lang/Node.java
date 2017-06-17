@@ -27,20 +27,24 @@ public class Node {
         return type == getType();
     }
 
-    public boolean isClosure() {
+    public boolean isLambda() {
         return is(LexemType.LAMBDA);
-    }
-
-    public boolean isSeq() {
-        return is(LexemType.Seq);
     }
 
     public boolean isString() {
         return is(LexemType.String);
     }
 
+    public boolean isDoubleSeq() {
+        return is(LexemType.DoubleSeq);
+    }
+
     public boolean isDouble() {
         return is(LexemType.DoubleNumber);
+    }
+
+    public boolean isIntegerSeq() {
+        return is(LexemType.IntegerSeq);
     }
 
     public boolean isInteger() {
@@ -51,16 +55,20 @@ public class Node {
         return null;
     }
 
-    public Object asSeq() {
-        return null;
-    }
-
     public long toInteger() {
         return 0;
     }
 
+    public IntegerSeqNode toIntegerSeq() {
+        return null;
+    }
+
     public double toDouble() {
         return 0;
+    }
+
+    public DoubleSeqNode toDoubleSeq() {
+        return null;
     }
 
     public String getContent() {

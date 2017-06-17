@@ -20,7 +20,8 @@ public enum LexemType {
     Assign(1),
 
     IntegerNumber(0), DoubleNumber(0),
-    String(0), Seq(0),
+    String(0),
+    Seq(0), IntegerSeq(0), DoubleSeq(0),
 
     Identifier(0),
 
