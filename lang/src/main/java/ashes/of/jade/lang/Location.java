@@ -29,6 +29,6 @@ public class Location {
 
     @Override
     public String toString() {
-        return "Location{" + line + ", " + offset + '}';
+        return line + ":" + offset;
     }
 }

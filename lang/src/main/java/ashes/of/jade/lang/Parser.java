@@ -1,7 +1,6 @@
 package ashes.of.jade.lang;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 
@@ -11,7 +10,6 @@ public class Parser {
 
     private int index = -1;
     private final List<Lexem> lexems;
-    private final Deque<Node> nodes = new ArrayDeque<>();
 
 
     public Parser(List<Lexem> lexems) {
@@ -246,52 +244,6 @@ public class Parser {
     private boolean isFunction(LexemType type) {
         return type == LexemType.Map || type == LexemType.Reduce;
     }
-
-    private boolean hasNext() {
-        return index + 1 < lexems.size();
-    }
-
-    private Lexem next() {
-        if (!hasNext())
-            throw new RuntimeException("EOF");
-
-        index++;
-//        System.out.println("next: " + current());
-        return lexems.get(index);
-    }
-
-
-    //    stmt ::= var identifier = expr | out expr | print "string"
-
-
-//    private StmtNode parseStmtOut(Lexem lexem) {
-//        Node expr = parseExpr();
-//        if (expr == null)
-//            throw new RuntimeException("out expr is null");
-//
-//        return new OutNode(expr);
-//    }
-//
-//    private StmtNode parseStmtPrint(Lexem lexem) {
-//        Lexem identifier = ensureNext(Identifier);
-//        Node expr = parseExpr();
-//        if (expr == null)
-//            throw new RuntimeException("print expr is null");
-//
-//        return new VarNode(identifier.getContent(), expr);
-//    }
-
-    private Lexem ensureNext(LexemType expected) {
-        if (!hasNext())
-            throw new RuntimeException("Expected " + expected + " not found");
-
-        Lexem next = next();
-        if (next.getType() != expected)
-            throw new RuntimeException("Expected " + expected + " but found " + next.getType());
-
-        return next;
-    }
-
 
     private void error(String msg, Object... args){
         throw new RuntimeException(String.format(msg, args));

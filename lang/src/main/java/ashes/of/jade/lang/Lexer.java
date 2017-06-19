@@ -12,8 +12,8 @@ public class Lexer {
     private final Map<LexemType, Pattern> keywords = new LinkedHashMap<>();
 
     {
-        keywords.put(LexemType.NewLine, Pattern.compile("\\n"));
-        keywords.put(LexemType.Whitespace, Pattern.compile("\\s"));
+        keywords.put(LexemType.NewLine,             Pattern.compile("\\n"));
+        keywords.put(LexemType.Whitespace,          Pattern.compile("\\s"));
 
         keywords.put(LexemType.Var,                 Pattern.compile("var"));
         keywords.put(LexemType.Print,               Pattern.compile("print"));
@@ -41,6 +41,7 @@ public class Lexer {
         keywords.put(LexemType.Identifier,          Pattern.compile("[A-Za-z][A-Za-z0-9_]*"));
         keywords.put(LexemType.String,              Pattern.compile("\".*\""));
     }
+
 
 
     public List<Lexem> parse(String source) {
@@ -80,14 +81,23 @@ public class Lexer {
         for (Map.Entry<LexemType, Pattern> e : keywords.entrySet()) {
             LexemType type = e.getKey();
             Pattern pattern = e.getValue();
+            Location location = it.getLocation();
+
+
 
             if (type.len > 0 && it.isEnough(type.len)) {
+
                 String content = it.getString(type.len);
                 if (pattern.matcher(content).matches()) {
                     it.step(type.len);
 
-                    if (type != LexemType.Whitespace)
-                        return new Lexem(type, it.getLocation(), "");
+                    if (type == LexemType.NewLine) {
+                        it.newLine();
+                    }
+
+                    if (type != LexemType.Whitespace) {
+                        return new Lexem(type, location, "");
+                    }
                 }
             } else {
 //                Matcher matcher = pattern.matcher(it.getSource())
@@ -104,19 +114,22 @@ public class Lexer {
                 char ch = it.getChar();
 
                 if (Character.isDigit(ch)) {
+
                     int start = it.getIndex();
-                    while (!it.isEOF() && Character.isDigit(it.getChar()) || it.getChar() == '.')
+                    while (!it.isEOF() && (Character.isDigit(it.getChar()) || it.getChar() == '.'))
                         it.step(1);
 
                     String content = it.getString(start, it.getIndex() - start);
 
                     Pattern number = keywords.get(LexemType.IntegerNumber);
-                    if (number.matcher(content).matches())
-                        return new Lexem(LexemType.IntegerNumber, it.getLocation(), content);
+                    if (number.matcher(content).matches()) {
+
+                        return new Lexem(LexemType.IntegerNumber, location, content);
+                    }
 
                     Pattern fp = keywords.get(LexemType.DoubleNumber);
                     if (fp.matcher(content).matches())
-                        return new Lexem(LexemType.DoubleNumber, it.getLocation(), content);
+                        return new Lexem(LexemType.DoubleNumber, location, content);
 
                     return null;
                 }
@@ -124,7 +137,7 @@ public class Lexer {
 
                 if (Character.isLetter(ch)) {
                     int start = it.getIndex();
-                    while (!it.isEOF() && Character.isLetter(it.getChar()) || Character.isDigit(it.getChar()) || it.getChar() == '_') {
+                    while (!it.isEOF() && (Character.isLetter(it.getChar()) || Character.isDigit(it.getChar()) || it.getChar() == '_')) {
                         it.step(1);
                     }
 
@@ -132,7 +145,7 @@ public class Lexer {
 
                     Pattern id = keywords.get(LexemType.Identifier);
                     if (id.matcher(content).matches())
-                        return new Lexem(LexemType.Identifier, it.getLocation(), content);
+                        return new Lexem(LexemType.Identifier, location, content);
 
                     return null;
                 }

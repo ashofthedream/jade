@@ -5,6 +5,8 @@ public class SourceCode {
 
     private final String source;
     private int index = 0;
+    private int line = 1;
+    private int offset = 1;
 
 
     public SourceCode(String source) {
@@ -29,6 +31,7 @@ public class SourceCode {
 
     public void step(int len) {
         index += len;
+        offset += len;
     }
 
     public boolean isEOF() {
@@ -37,6 +40,12 @@ public class SourceCode {
 
     public int remains() {
         return source.length() - index;
+    }
+
+
+    public void newLine() {
+        line++;
+        offset = 1;
     }
 
     public int getCurrentPosition() {
@@ -65,7 +74,7 @@ public class SourceCode {
 
 
     public Location getLocation() {
-        return new Location(1, index);
+        return new Location(line, offset);
     }
 
     public String getSource() {
