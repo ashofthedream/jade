@@ -1,12 +1,14 @@
-package ashes.of.jade.lang;
+package ashes.of.jade.lang.nodes;
 
 import java.util.Arrays;
+
 
 public class IntegerSeqNode extends Node {
 
     public long[] seq;
+
     public IntegerSeqNode(long... seq) {
-        super(new Lexem(LexemType.IntegerSeq));
+        super(NodeType.INTEGERSEQ);
         this.seq = seq;
     }
 

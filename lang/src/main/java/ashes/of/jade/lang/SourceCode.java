@@ -7,6 +7,7 @@ public class SourceCode {
     private int index = 0;
     private int line = 1;
     private int offset = 1;
+    private int newLine = 0;
 
 
     public SourceCode(String source) {
@@ -29,6 +30,10 @@ public class SourceCode {
         return source.substring(index, index + len);
     }
 
+    public void step() {
+        step(1);
+    }
+
     public void step(int len) {
         index += len;
         offset += len;
@@ -46,6 +51,7 @@ public class SourceCode {
     public void newLine() {
         line++;
         offset = 1;
+        newLine = index;
     }
 
     public int getCurrentPosition() {
@@ -77,11 +83,80 @@ public class SourceCode {
         return new Location(line, offset);
     }
 
-    public String getSource() {
-        return source;
+
+    public boolean isWhitespace() {
+        return !isEOF() && Character.isWhitespace(getChar());
+    }
+
+    public boolean isNewLine() {
+        return getChar() == '\n';
+    }
+
+    public boolean isLetter() {
+        return !isEOF() && Character.isLetter(getChar());
+    }
+
+    public boolean isDigit() {
+        return Character.isDigit(getChar());
+    }
+
+    public boolean isOperator() {
+        return isPlus() ||  isMinus() || isBackSlash() || isStar();
+    }
+
+    public boolean isPlus() {
+        return getChar() == '+';
+    }
+
+    private boolean isMinus() {
+        return getChar() == '-';
+    }
+
+    private boolean isBackSlash() {
+        return getChar() == '/';
+    }
+
+    private boolean isStar() {
+        return getChar() == '*';
     }
 
 
+    public boolean isAssign() {
+        return getChar() == '=';
+    }
+
+    public boolean isComma() {
+        return getChar() == ',';
+    }
+
+    public boolean isDot() {
+        return getChar() == '.';
+    }
+
+    public boolean isParentOpen() {
+        return getChar() == '(';
+    }
+
+    public boolean isParentClose() {
+        return getChar() == ')';
+    }
+
+    public boolean isCurlyOpen() {
+        return getChar() == '{';
+    }
+
+    public boolean isCurlyClose() {
+        return getChar() == '}';
+    }
+
+
+    public String getLine() {
+        return source.substring(newLine, index);
+    }
+
+    public String getSource() {
+        return source;
+    }
 
     @Override
     public String toString() {

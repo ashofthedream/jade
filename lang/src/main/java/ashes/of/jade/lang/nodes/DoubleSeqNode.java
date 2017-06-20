@@ -1,12 +1,13 @@
-package ashes.of.jade.lang;
+package ashes.of.jade.lang.nodes;
 
 import java.util.Arrays;
+
 
 public class DoubleSeqNode extends Node {
 
     public double[] seq;
     public DoubleSeqNode(double... seq) {
-        super(new Lexem(LexemType.DoubleNumber));
+        super(NodeType.DOUBLESEQ);
         this.seq = seq;
     }
 

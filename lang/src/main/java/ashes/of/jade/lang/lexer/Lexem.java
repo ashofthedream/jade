@@ -1,5 +1,7 @@
-package ashes.of.jade.lang;
+package ashes.of.jade.lang.lexer;
 
+
+import ashes.of.jade.lang.Location;
 
 public class Lexem {
     private final LexemType type;

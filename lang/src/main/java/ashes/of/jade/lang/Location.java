@@ -1,6 +1,9 @@
 package ashes.of.jade.lang;
 
 public class Location {
+
+    public static final Location EMPTY = new Location(0, 0);
+
     public final int line;
     public final int offset;
 
@@ -16,8 +19,7 @@ public class Location {
 
         Location location = (Location) o;
 
-        if (line != location.line) return false;
-        return offset == location.offset;
+        return line == location.line && offset == location.offset;
     }
 
     @Override

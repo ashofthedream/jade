@@ -1,12 +1,13 @@
-package ashes.of.jade.lang;
+package ashes.of.jade.lang.nodes;
+
 
 public class SeqNode extends Node {
 
     private final Node l;
     private final Node r;
 
-    public SeqNode(Lexem lexem, Node l, Node r) {
-        super(lexem);
+    public SeqNode(Node l, Node r) {
+        super(NodeType.SEQ);
 
         if (!l.isInteger() || !r.isInteger())
             throw new RuntimeException("only IntNode allowed as a sequence, actual: {" + l + ", " + r + "}");

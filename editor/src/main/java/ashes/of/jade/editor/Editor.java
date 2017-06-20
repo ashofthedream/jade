@@ -1,6 +1,6 @@
 package ashes.of.jade.editor;
 
-import ashes.of.jade.lang.Interpreter;
+import ashes.of.jade.lang.interpreter.Interpreter;
 
 
 public class Editor {

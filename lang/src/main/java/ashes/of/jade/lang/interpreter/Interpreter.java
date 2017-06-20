@@ -1,4 +1,11 @@
-package ashes.of.jade.lang;
+package ashes.of.jade.lang.interpreter;
+
+import ashes.of.jade.lang.Location;
+import ashes.of.jade.lang.lexer.Lexem;
+import ashes.of.jade.lang.lexer.Lexer;
+import ashes.of.jade.lang.nodes.*;
+import ashes.of.jade.lang.parser.ParseException;
+import ashes.of.jade.lang.parser.Parser;
 
 import java.util.*;
 
@@ -23,7 +30,7 @@ public class Interpreter {
 
         while (it.hasNext()) {
             Node node = it.next();
-            if (node.is(LexemType.NewLine) || node.is(LexemType.EOF)) {
+            if (node.is(NodeType.NL) || node.is(NodeType.EOF)) {
                 System.out.println();
                 System.out.println();
                 continue;
@@ -31,28 +38,31 @@ public class Interpreter {
 
             System.out.printf("eval> %-40s %-60s %-60s %s%n", node, scope, stack, nodes);
 
-            if (node.is(LexemType.IntegerNumber) || node.is(LexemType.DoubleNumber) || node.is(LexemType.String)) {
+            if (node.isInteger() || node.isDouble() || node.isString()) {
                 stack.push(node);
                 continue;
             }
 
-            if (node.is(LexemType.STORE)) {
+            if (node.is(NodeType.STORE)) {
                 Node pop = stack.pop();
                 scope.put(node.getContent(), pop);
             }
 
-            if (node.is(LexemType.LOAD)) {
+            if (node.is(NodeType.LOAD)) {
                 Node pop = scope.get(node.getContent());
                 stack.push(pop);
             }
 
-            if (node.is(LexemType.Out)) {
+            if (node.is(NodeType.OUT)) {
                 Node pop = stack.pop();
+                if (pop.isString())
+                    throw new EvalException("String isn't allowed at " + pop.getLocation());
+
                 System.out.println("\tOUT  \t\t" + pop);
             }
 
 
-            if (node.is(LexemType.Map)) {
+            if (node.is(NodeType.MAP)) {
                 Node lambda = stack.pop();
                 Node seq = stack.pop();
 
@@ -63,7 +73,7 @@ public class Interpreter {
                 stack.push(mapped);
             }
 
-            if (node.is(LexemType.Reduce)) {
+            if (node.is(NodeType.REDUCE)) {
                 Node lambda = stack.pop();
                 Node n = stack.pop();
                 Node seq = stack.pop();
@@ -75,84 +85,27 @@ public class Interpreter {
                 stack.push(reduced);
             }
 
-            if (node.is(LexemType.LAMBDA)) {
+            if (node.is(NodeType.LAMBDA)) {
                 stack.push(node);
             }
 
-            if (node.is(LexemType.Seq)) {
+            if (node.is(NodeType.SEQ)) {
                 Node l = stack.pop();
                 Node r = stack.pop();
 
-                stack.push(new SeqNode(node.getLexem(), r, l));
+                stack.push(new SeqNode(r, l));
             }
 
-            if (node.is(LexemType.Print)) {
+            if (node.is(NodeType.PRINT)) {
                 Node pop = stack.pop();
+                if (!pop.isString())
+                    throw new EvalException("Invalid type for print, only string is allowed at " + pop.getLocation());
+
                 System.out.println("\tPRINT\t\t" + pop.toString());
             }
 
-            if (node.getType().isOperator()) {
-                Node l = stack.pop();
-                Node r = stack.pop();
-                switch (node.getType()) {
-                    case Plus:
-                        if (l.isDouble() || r.isDouble()) {
-                            stack.push(new DoubleNode(r.toDouble() + l.toDouble()));
-                            break;
-                        }
-
-                        if (l.isInteger() && r.isInteger()) {
-                            stack.push(new IntNode( r.toInteger() + l.toInteger()));
-                            break;
-                        }
-
-                        throw new RuntimeException("Can't " + l + " + " + r);
-
-                    case Minus:
-                        if (l.isDouble() || r.isDouble()) {
-                            stack.push(new DoubleNode(r.toDouble() - l.toDouble()));
-                            break;
-                        }
-
-                        if (l.isInteger() && r.isInteger()) {
-                            stack.push(new IntNode(r.toInteger() - l.toInteger()));
-                            break;
-                        }
-
-                        throw new RuntimeException("Can't " + l + " - " + r);
-
-                    case Multiply:
-                        if (l.isDouble() || r.isDouble()) {
-                            stack.push(new DoubleNode(r.toDouble() * l.toDouble()));
-                            break;
-                        }
-
-                        if (l.isInteger() && r.isInteger()) {
-                            stack.push(new IntNode(r.toInteger() * l.toInteger()));
-                            break;
-                        }
-
-                        throw new RuntimeException("Can't " + l + " * " + r);
-
-                    case Divide:
-                        if (l.isDouble() || r.isDouble()) {
-                            stack.push(new DoubleNode(r.toDouble() / l.toDouble()));
-                            break;
-                        }
-
-                        if (l.isInteger() && r.isInteger()) {
-                            stack.push(new IntNode(l.toInteger() / l.toInteger()));
-                            break;
-                        }
-
-                        throw new RuntimeException("Can't " + l + " * " + r);
-
-                    case Power:
-
-                        stack.push(new DoubleNode(Math.pow(r.toDouble(), l.toDouble())));
-                        break;
-
-                }
+            if (isOperator(node)) {
+                stack.push(operate(stack, node));
             }
         }
 
@@ -162,6 +115,82 @@ public class Interpreter {
         System.out.println();
         return stack;
     }
+
+    private Node operate(Deque<Node> stack, Node node) {
+        Node l = stack.pop();
+        Node r = stack.pop();
+        switch (node.getType()) {
+            case ADD:   return add(l, r);
+            case SUB:   return subtract(l, r);
+            case MUL:   return multiply(l, r);
+            case DIV:   return divide(l, r);
+            case POWER: return new DoubleNode(Math.pow(r.toDouble(), l.toDouble()));
+
+        }
+
+        throw new EvalException("Unknown operator " + node);
+    }
+
+
+    private Node divide(Node l, Node r) {
+        if (l.isDouble() || r.isDouble()) {
+            return new DoubleNode(r.toDouble() / l.toDouble());
+        }
+
+        if (l.isInteger() && r.isInteger()) {
+            return new IntNode(r.toInteger() / l.toInteger());
+        }
+
+        throw new EvalException("Can't " + l + " * " + r);
+    }
+
+    private Node multiply(Node l, Node r) {
+        if (l.isDouble() || r.isDouble()) {
+            return new DoubleNode(r.toDouble() * l.toDouble());
+        }
+
+        if (l.isInteger() && r.isInteger()) {
+            return new IntNode(r.toInteger() * l.toInteger());
+        }
+
+        throw new EvalException("Can't " + l + " * " + r);
+    }
+
+    private Node subtract(Node l, Node r) {
+        if (l.isDouble() || r.isDouble()) {
+            return new DoubleNode(r.toDouble() - l.toDouble());
+        }
+
+        if (l.isInteger() && r.isInteger()) {
+            return new IntNode(r.toInteger() - l.toInteger());
+        }
+
+        throw new EvalException("Can't " + l + " - " + r);
+    }
+
+
+    private Node add(Node l, Node r) {
+        if (l.isDouble() || r.isDouble()) {
+            return new DoubleNode(r.toDouble() + l.toDouble());
+        }
+
+        if (l.isInteger() && r.isInteger()) {
+            return new IntNode( r.toInteger() + l.toInteger());
+        }
+
+        throw new EvalException("Can't eval(" + l + " + " + r + ")");
+    }
+
+
+
+    private boolean isOperator(Node node) {
+        return  node.is(NodeType.ADD) ||
+                node.is(NodeType.SUB) ||
+                node.is(NodeType.MUL) ||
+                node.is(NodeType.DIV) ||
+                node.is(NodeType.POWER);
+    }
+
 
     private Node map(IntegerSeqNode seq, Node lambda) {
         long[] l = null;
@@ -201,7 +230,7 @@ public class Interpreter {
         double[] d = new double[seq.seq.length];
         Deque<Node> stack = new ArrayDeque<>();
         for (int i = 0; i < seq.seq.length; i++) {
-            stack.push(new DoubleNode(new Lexem(LexemType.DoubleNumber), seq.seq[i]));
+            stack.push(new DoubleNode(seq.seq[i]));
             eval(stack, lambda.getNodes());
 
             Node result = stack.pop();
@@ -255,8 +284,8 @@ public class Interpreter {
 //                "var x = 0\n" +
 //                "var n = x + 500\n" +
                 "var seq = {4, 6}\n" +
-                "var sequence = map(seq, i -> i + 1)\n" +
-//                "var sequence = map({0, 3}, i -> (i * i) + 1)\n" +
+//                "var sequence = map(seq, i -> i + 1)\n" +
+                "var sequence = map({0, 3}, i -> (i * i) + 1)\n" +
 //                "var pi = 3.1415 * reduce (sequence, 0, x y -> x + y)\n" +
 //                "var pi = 1 * reduce(sequence, 1000, acc y -> acc + y)\n" +
                 "var pi = 1 * reduce(sequence, 1, acc y -> acc * y)\n" +
@@ -265,11 +294,11 @@ public class Interpreter {
                 "" ;
 
         try {
-            Lexer lexer = new Lexer();
-            List<Lexem> lexems = lexer.parse(expr);
-
             System.out.println(expr);
             System.out.println();
+
+            Lexer lexer = new Lexer();
+            List<Lexem> lexems = lexer.parse(expr);
             System.out.println(lexems);
             System.out.println();
 
@@ -279,7 +308,7 @@ public class Interpreter {
             System.out.println();
             System.out.println("byLineStack:");
             rpn.stream()
-                    .map(x -> x.getType() == LexemType.NewLine ? "^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ \n" : x.toString())
+                    .map(x -> x.getType() == NodeType.NL ? "^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ \n" : x.toString())
                     .forEach(System.out::println);
 
             System.out.println();
@@ -291,7 +320,7 @@ public class Interpreter {
         } catch (ParseException e) {
 
             StringBuilder b = new StringBuilder()
-                    .append(e.getCode())
+                    .append(e.getLine())
                     .append("\n");
 
             Location location = e.getLocation();
