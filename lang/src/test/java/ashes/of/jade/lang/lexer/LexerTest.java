@@ -2,6 +2,7 @@ package ashes.of.jade.lang.lexer;
 
 import ashes.of.jade.lang.Location;
 import ashes.of.jade.lang.parser.ParseException;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -43,6 +44,108 @@ public class LexerTest {
         assertEquals(expected, actual);
     }
 
+
+
+    @Test
+    public void parseShouldThrowAnExceptionIfLineStartsFromPlus() {
+        String source = "+10\n";
+
+        try {
+            Lexer lexer = new Lexer();
+            lexer.parse(source);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            assertEquals(new Location(1, 1), e.getLocation());
+        }
+    }
+
+    @Test
+    public void parseShouldThrowAnExceptionIfLineStartsFromMinus() {
+        String source = "-10\n";
+
+        try {
+            Lexer lexer = new Lexer();
+            lexer.parse(source);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            assertEquals(new Location(1, 1), e.getLocation());
+        }
+    }
+
+    @Test
+    public void parseShouldThrowAnExceptionIfLineStartsFromString() {
+        String source = "\"hello world\"\n";
+
+        try {
+            Lexer lexer = new Lexer();
+            lexer.parse(source);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            assertEquals(new Location(1, 1), e.getLocation());
+        }
+    }
+
+    @Test
+    public void parseShouldThrowAnExceptionIfLineStartsFromInteger() {
+        String source = "13 + 37\n";
+
+        try {
+            Lexer lexer = new Lexer();
+            lexer.parse(source);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            assertEquals(new Location(1, 1), e.getLocation());
+        }
+    }
+
+    @Test
+    public void parseShouldThrowAnExceptionIfLineStartsFromDouble() {
+        String source = "13.37\n";
+
+        try {
+            Lexer lexer = new Lexer();
+            lexer.parse(source);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            assertEquals(new Location(1, 1), e.getLocation());
+        }
+    }
+
+    @Test
+    public void parseShouldThrowAnExceptionIfLineStartsFromIdentifier() {
+        String source = "a = 1\n";
+
+        try {
+            Lexer lexer = new Lexer();
+            lexer.parse(source);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            assertEquals(new Location(1, 1), e.getLocation());
+        }
+    }
+
+    @Test
+    public void parseShouldThrowAnExceptionIfSecondLineStartsFromIdentifier() {
+        String source = "var a = 5\n" +
+                        "b = 1\n";
+
+        try {
+            Lexer lexer = new Lexer();
+            lexer.parse(source);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            assertEquals(new Location(2, 1), e.getLocation());
+        }
+    }
+
+
     @Test
     public void parseShouldThrowAnExceptionIfSymbolIsUnknown() {
         String source = "var first = 1 & 7\n";
@@ -50,6 +153,8 @@ public class LexerTest {
         try {
             Lexer lexer = new Lexer();
             lexer.parse(source);
+
+            fail("Parse should fail");
         } catch (ParseException e) {
             assertEquals(new Location(1, 15), e.getLocation());
         }
@@ -79,6 +184,8 @@ public class LexerTest {
         try {
             Lexer lexer = new Lexer();
             lexer.parse(source);
+
+            fail("Parse should fail");
         } catch (ParseException e) {
             assertEquals(new Location(1, 16), e.getLocation());
         }
@@ -118,6 +225,21 @@ public class LexerTest {
         );
 
         assertEquals(expected, actual);
+    }
+
+    @Ignore("Doesn't work yet")
+    @Test
+    public void parseShouldThrowAnExceptionIfTwoOperatorsInExpr() {
+        String source = "var a = 5 - * 1";
+
+        try {
+            Lexer lexer = new Lexer();
+            lexer.parse(source);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            assertEquals(new Location(2, 1), e.getLocation());
+        }
     }
 
     @Test

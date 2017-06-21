@@ -9,9 +9,7 @@ import org.junit.Test;
 import java.util.Deque;
 import java.util.List;
 
-import static ashes.of.jade.lang.NodeAssert.assertMinus;
-import static ashes.of.jade.lang.NodeAssert.assertMultiply;
-import static ashes.of.jade.lang.NodeAssert.assertPlus;
+import static ashes.of.jade.lang.NodeAssert.*;
 import static org.junit.Assert.*;
 
 public class ParserTest {
@@ -138,24 +136,25 @@ public class ParserTest {
         System.out.println();
 
         // var seq = {0, 3} \n
+        // 0
+        // 3
+        // SEQ
+        // STORE seq
         rpn.removeLast();
         rpn.removeLast();
         rpn.removeLast();
         rpn.removeLast();
 
+        // NL
         rpn.removeLast();
 
         // var mapped = map(seq, e -> e * 2)
-        Node seq = rpn.removeLast();
-        Node lambda = rpn.removeLast();
+        // LOAD seq
+        // LAMBDA
+        // MAP
+        assertNode(NodeType.LOAD, "seq", rpn.removeLast());
+        assertNode(NodeType.LAMBDA, rpn.removeLast());
 
-        assertEquals(NodeType.LOAD, seq.getType());
-        assertEquals("seq", seq.getContent());
-
-        assertEquals(NodeType.LAMBDA, lambda.getType());
-
-        System.out.println(seq);
-        System.out.println(lambda);
         System.out.println(rpn);
     }
 

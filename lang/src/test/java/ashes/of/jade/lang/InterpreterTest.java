@@ -30,7 +30,7 @@ public class InterpreterTest {
 
     @Test(expected = EvalException.class)
     public void evalShouldThrowAnExceptionIfSourceCodeContainsIntegerFirstMapParameter() throws Exception {
-        String source = "map(13, x -> x)";
+        String source = "var m = map(13, x -> x)";
 
         Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
@@ -44,7 +44,7 @@ public class InterpreterTest {
 
     @Test(expected = EvalException.class)
     public void evalShouldThrowAnExceptionIfSourceCodeContainsDoubleFirstMapParameter() throws Exception {
-        String source = "map(13.37, x -> x)";
+        String source = "var m = map(13.37, x -> x)";
 
         Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);

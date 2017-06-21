@@ -3,6 +3,8 @@ package ashes.of.jade.lang.nodes;
 public enum NodeType {
 
 
+    COMMA,
+
     CurlyOpen,
     CurlyClose,
     ParentOpen,

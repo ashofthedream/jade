@@ -86,6 +86,7 @@ public class Node {
 
     @Override
     public String toString() {
-        return type + "{" + content + "}" + " " + (location == Location.EMPTY ? "" : location);
+        return type + (content != null && !content.isEmpty() ? "{" + content + "}" : "" ) +
+                      (location == Location.EMPTY ? "" : " " + location);
     }
 }

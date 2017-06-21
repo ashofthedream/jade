@@ -11,7 +11,7 @@ public class ParseException extends RuntimeException {
 
     public ParseException(String message, SourceCode it) {
         super(message);
-        this.line = it.getLine();
+        this.line = it.getLineToIndex();
         this.location = it.getLocation();
     }
 
@@ -24,6 +24,7 @@ public class ParseException extends RuntimeException {
     public String getLine() {
         return line;
     }
+
     public Location getLocation() {
         return location;
     }

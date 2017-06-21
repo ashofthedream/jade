@@ -10,6 +10,15 @@ import static org.junit.Assert.assertEquals;
 public class NodeAssert {
 
 
+    public static void assertNode(NodeType expected, Node n) {
+        assertEquals(expected, n.getType());
+    }
+
+    public static void assertNode(NodeType expected, String content, Node n) {
+        assertEquals(expected, n.getType());
+        assertEquals(content, n.getContent());
+    }
+
     public static void assertNodeType(NodeType expected, Node n) {
         assertEquals(expected, n.getType());
     }

@@ -6,11 +6,14 @@ import ashes.of.jade.lang.lexer.Lexer;
 import ashes.of.jade.lang.nodes.*;
 import ashes.of.jade.lang.parser.ParseException;
 import ashes.of.jade.lang.parser.Parser;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 
 
 public class Interpreter {
+    private static final Logger log = LogManager.getLogger(Interpreter.class);
 
     public Deque<Node> eval(Deque<Node> nodes) {
         return eval(new ArrayDeque<>(), new HashMap<>(), nodes);
@@ -21,50 +24,63 @@ public class Interpreter {
     }
 
     public Deque<Node> eval(Deque<Node> stack, Map<String, Node>  scope, Deque<Node> nodes) {
-        System.out.println();
-        System.out.printf("HEAD> %-40s %-60s %-60s %s%n", "NODE", "SCOPE", "STACK", "INPUT");
-        System.out.printf("INPT> %-40s %-60s %-60s %s%n",     "", 0, stack, nodes);
-        System.out.printf("");
+        log.debug("eval {} nodes: {}", nodes.size(), nodes);
+        log.trace("scope <-- {}", scope);
+        log.trace("stack <-- {}", stack);
 
         Iterator<Node> it = nodes.descendingIterator();
-
         while (it.hasNext()) {
             Node node = it.next();
-            if (node.is(NodeType.NL) || node.is(NodeType.EOF)) {
-                System.out.println();
-                System.out.println();
+            if (node.is(NodeType.NL) || node.is(NodeType.EOF))
                 continue;
-            }
 
-            System.out.printf("eval> %-40s %-60s %-60s %s%n", node, scope, stack, nodes);
+
+            log.debug("eval: {}", node);
+            log.trace("scope {}", scope);
+            log.trace("stack {}", stack);
+//            System.out.printf("eval> %-40s %-60s %-60s %s%n", node, scope, stack, nodes);
 
             if (node.isInteger() || node.isDouble() || node.isString()) {
+                log.trace("stack.push {}", node);
                 stack.push(node);
                 continue;
             }
 
             if (node.is(NodeType.STORE)) {
                 Node pop = stack.pop();
+                log.trace("scope.put {} -> {}", node.getContent(), node);
                 scope.put(node.getContent(), pop);
             }
 
             if (node.is(NodeType.LOAD)) {
                 Node pop = scope.get(node.getContent());
+                log.trace("scope.get {} stack.push {}", node.getContent(), pop);
                 stack.push(pop);
             }
 
             if (node.is(NodeType.OUT)) {
                 Node pop = stack.pop();
+                log.trace("out {}", pop);
                 if (pop.isString())
                     throw new EvalException("String isn't allowed at " + pop.getLocation());
 
                 System.out.println("\tOUT  \t\t" + pop);
             }
 
+            if (node.is(NodeType.PRINT)) {
+                Node pop = stack.pop();
+                log.trace("print {}", pop);
+                if (!pop.isString())
+                    throw new EvalException("Invalid type for print, only string is allowed at " + pop.getLocation());
+
+                System.out.println("\tPRINT\t\t" + pop.toString());
+            }
 
             if (node.is(NodeType.MAP)) {
                 Node lambda = stack.pop();
                 Node seq = stack.pop();
+
+                log.trace("call map({}, {})", seq, lambda);
 
                 Node mapped = seq.isIntegerSeq() ?
                         map(seq.toIntegerSeq(), lambda) :
@@ -78,6 +94,8 @@ public class Interpreter {
                 Node n = stack.pop();
                 Node seq = stack.pop();
 
+                log.trace("call reduce({}, {}, {})", seq, n, lambda);
+
                 Node reduced = seq.isIntegerSeq() ?
                         reduce(seq.toIntegerSeq(), n, lambda) :
                         reduce(seq.toDoubleSeq(), n, lambda);
@@ -85,7 +103,10 @@ public class Interpreter {
                 stack.push(reduced);
             }
 
+
+
             if (node.is(NodeType.LAMBDA)) {
+                log.trace("stack.push {}", node);
                 stack.push(node);
             }
 
@@ -93,39 +114,34 @@ public class Interpreter {
                 Node l = stack.pop();
                 Node r = stack.pop();
 
-                stack.push(new SeqNode(r, l));
-            }
-
-            if (node.is(NodeType.PRINT)) {
-                Node pop = stack.pop();
-                if (!pop.isString())
-                    throw new EvalException("Invalid type for print, only string is allowed at " + pop.getLocation());
-
-                System.out.println("\tPRINT\t\t" + pop.toString());
+                SeqNode seq = new SeqNode(r, l);
+                log.trace("stack.push {}", node);
+                stack.push(seq);
             }
 
             if (isOperator(node)) {
-                stack.push(operate(stack, node));
+                Node b = stack.pop();
+                Node a = stack.pop();
+
+                log.trace("operator: {} {} {}", node, a, b);
+                Node result = operate(node, a, b);
+                log.trace("stack.push {}", result);
+                stack.push(result);
             }
         }
 
 
-        System.out.printf("RET > %-40s %-60s %s%n", "", scope, stack);
-        System.out.println();
-        System.out.println();
+        log.debug("eval ends with stack {} and scope {}", stack, scope);
         return stack;
     }
 
-    private Node operate(Deque<Node> stack, Node node) {
-        Node l = stack.pop();
-        Node r = stack.pop();
+    private Node operate(Node node, Node a, Node b) {
         switch (node.getType()) {
-            case ADD:   return add(l, r);
-            case SUB:   return subtract(l, r);
-            case MUL:   return multiply(l, r);
-            case DIV:   return divide(l, r);
-            case POWER: return new DoubleNode(Math.pow(r.toDouble(), l.toDouble()));
-
+            case ADD:   return add(a, b);
+            case SUB:   return subtract(a, b);
+            case MUL:   return multiply(a, b);
+            case DIV:   return divide(a, b);
+            case POWER: return new DoubleNode(Math.pow(b.toDouble(), a.toDouble()));
         }
 
         throw new EvalException("Unknown operator " + node);
@@ -275,17 +291,8 @@ public class Interpreter {
 
     public static void main(String... args) {
         String expr =
-//                "3 + out((1 + 7) * 4)\n" +
-//                "var a = 0\n" +
-//                "var b = (a * 2) + 1\n" +
-//                "out(7)\n" +
-//                "var fiveHundred = 400 + 50 * (3 - 1) / 2\n" +
-//                "var n = 2\n" +
-//                "var x = 0\n" +
-//                "var n = x + 500\n" +
                 "var seq = {4, 6}\n" +
-//                "var sequence = map(seq, i -> i + 1)\n" +
-                "var sequence = map({0, 3}, i -> (i * i) + 1)\n" +
+                "var sequence = map(seq, i -> i * i)\n" +
 //                "var pi = 3.1415 * reduce (sequence, 0, x y -> x + y)\n" +
 //                "var pi = 1 * reduce(sequence, 1000, acc y -> acc + y)\n" +
                 "var pi = 1 * reduce(sequence, 1, acc y -> acc * y)\n" +

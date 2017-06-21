@@ -14,20 +14,16 @@ public class SourceCode {
         this.source = source;
     }
 
-    public boolean isEnough(int len) {
-        return index + len < source.length();
-    }
-
     public char getChar() {
         return source.charAt(index);
     }
 
-    public String getString(int len) {
-        return getString(index, len);
-    }
-
     public String getString(int index, int len) {
         return source.substring(index, index + len);
+    }
+
+    public String getString(int len) {
+        return getString(index, len);
     }
 
     public void step() {
@@ -38,6 +34,7 @@ public class SourceCode {
         index += len;
         offset += len;
     }
+
 
     public boolean isEOF() {
         return remains() < 1;
@@ -54,25 +51,18 @@ public class SourceCode {
         newLine = index;
     }
 
-    public int getCurrentPosition() {
-        int i;
-        for (i = index; source.charAt(i) != '\n' && i > 0; i--) ;
 
-        return index - i;
-    }
-
-    public int getCurrentLineNumber() {
-        return 1;
-    }
-
-    public String getCurrentLineSource() {
+    public String getLineToEnd() {
         int i;
         for (i = index; source.charAt(i) != '\n' && i < source.length(); i++) ;
 
 
-        return source.substring(0, i);
+        return source.substring(index, i);
     }
 
+    public String getLineToIndex() {
+        return source.substring(newLine, index);
+    }
 
     public int getIndex() {
         return index;
@@ -108,18 +98,17 @@ public class SourceCode {
         return getChar() == '+';
     }
 
-    private boolean isMinus() {
+    public boolean isMinus() {
         return getChar() == '-';
     }
 
-    private boolean isBackSlash() {
+    public boolean isBackSlash() {
         return getChar() == '/';
     }
 
-    private boolean isStar() {
+    public boolean isStar() {
         return getChar() == '*';
     }
-
 
     public boolean isAssign() {
         return getChar() == '=';
@@ -147,11 +136,6 @@ public class SourceCode {
 
     public boolean isCurlyClose() {
         return getChar() == '}';
-    }
-
-
-    public String getLine() {
-        return source.substring(newLine, index);
     }
 
     public String getSource() {
