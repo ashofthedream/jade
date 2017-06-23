@@ -21,10 +21,10 @@ public class InterpreterTest {
         Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
 
-        Parser parser = new Parser(lexems);
-        Deque<Node> nodes = parser.parse();
+        Parser parser = new Parser();
+        Deque<Node> nodes = parser.parse(lexems);
 
-        Interpreter interpreter = new Interpreter();
+        Interpreter interpreter = new Interpreter(lexer, parser);
         interpreter.eval(nodes);
     }
 
@@ -35,10 +35,10 @@ public class InterpreterTest {
         Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
 
-        Parser parser = new Parser(lexems);
-        Deque<Node> nodes = parser.parse();
+        Parser parser = new Parser();
+        Deque<Node> nodes = parser.parse(lexems);
 
-        Interpreter interpreter = new Interpreter();
+        Interpreter interpreter = new Interpreter(lexer, parser);
         interpreter.eval(nodes);
     }
 
@@ -49,10 +49,10 @@ public class InterpreterTest {
         Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
 
-        Parser parser = new Parser(lexems);
-        Deque<Node> nodes = parser.parse();
+        Parser parser = new Parser();
+        Deque<Node> nodes = parser.parse(lexems);
 
-        Interpreter interpreter = new Interpreter();
+        Interpreter interpreter = new Interpreter(lexer, parser);
         interpreter.eval(nodes);
     }
 
@@ -64,10 +64,10 @@ public class InterpreterTest {
         Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
 
-        Parser parser = new Parser(lexems);
-        Deque<Node> nodes = parser.parse();
+        Parser parser = new Parser();
+        Deque<Node> nodes = parser.parse(lexems);
 
-        Interpreter interpreter = new Interpreter();
+        Interpreter interpreter = new Interpreter(lexer, parser);
         interpreter.eval(nodes);
     }
 
@@ -79,10 +79,10 @@ public class InterpreterTest {
         Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
 
-        Parser parser = new Parser(lexems);
-        Deque<Node> nodes = parser.parse();
+        Parser parser = new Parser();
+        Deque<Node> nodes = parser.parse(lexems);
 
-        Interpreter interpreter = new Interpreter();
+        Interpreter interpreter = new Interpreter(lexer, parser);
         interpreter.eval(nodes);
     }
 
@@ -94,10 +94,10 @@ public class InterpreterTest {
         Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
 
-        Parser parser = new Parser(lexems);
-        Deque<Node> nodes = parser.parse();
+        Parser parser = new Parser();
+        Deque<Node> nodes = parser.parse(lexems);
 
-        Interpreter interpreter = new Interpreter();
+        Interpreter interpreter = new Interpreter(lexer, parser);
         interpreter.eval(nodes);
     }    
 }

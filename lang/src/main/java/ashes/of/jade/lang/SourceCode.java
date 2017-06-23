@@ -54,7 +54,7 @@ public class SourceCode {
 
     public String getLineToEnd() {
         int i;
-        for (i = index; source.charAt(i) != '\n' && i < source.length(); i++) ;
+        for (i = index; i < source.length() && source.charAt(i) != '\n'; i++) ;
 
 
         return source.substring(index, i);

@@ -22,8 +22,8 @@ public class ParserTest {
         Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
 
-        Parser parser = new Parser(lexems);
-        Deque<Node> rpn = parser.parse();
+        Parser parser = new Parser();
+        Deque<Node> rpn = parser.parse(lexems);
 
         {
             assertValue(rpn, 13);
@@ -45,8 +45,8 @@ public class ParserTest {
         Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
 
-        Parser parser = new Parser(lexems);
-        Deque<Node> rpn = parser.parse();
+        Parser parser = new Parser();
+        Deque<Node> rpn = parser.parse(lexems);
 
         assertValue(rpn, 13);
         {
@@ -69,8 +69,8 @@ public class ParserTest {
         Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
 
-        Parser parser = new Parser(lexems);
-        Deque<Node> rpn = parser.parse();
+        Parser parser = new Parser();
+        Deque<Node> rpn = parser.parse(lexems);
 
         assertValue(rpn, 13);
         assertValue(rpn, 6);
@@ -89,8 +89,8 @@ public class ParserTest {
         Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
 
-        Parser parser = new Parser(lexems);
-        Deque<Node> rpn = parser.parse();
+        Parser parser = new Parser();
+        Deque<Node> rpn = parser.parse(lexems);
 
 
         assertValue(rpn, 13);
@@ -105,8 +105,8 @@ public class ParserTest {
         Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
 
-        Parser parser = new Parser(lexems);
-        Deque<Node> rpn = parser.parse();
+        Parser parser = new Parser();
+        Deque<Node> rpn = parser.parse(lexems);
 
         assertValue(rpn, 13.37);
         assertStore(rpn, "n");
@@ -125,8 +125,8 @@ public class ParserTest {
         System.out.println(lexems);
         System.out.println();
 
-        Parser parser = new Parser(lexems);
-        Deque<Node> rpn = parser.parse();
+        Parser parser = new Parser();
+        Deque<Node> rpn = parser.parse(lexems);
 
 
         System.out.println();
@@ -172,8 +172,8 @@ public class ParserTest {
         Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
 
-        Parser parser = new Parser(lexems);
-        Deque<Node> rpn = parser.parse();
+        Parser parser = new Parser();
+        Deque<Node> rpn = parser.parse(lexems);
 
 
         System.out.println();

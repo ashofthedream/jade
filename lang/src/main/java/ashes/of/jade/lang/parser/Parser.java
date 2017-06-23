@@ -16,19 +16,14 @@ public class Parser {
     private static final Logger log = LogManager.getLogger(Parser.class);
 
 
-    private final List<Lexem> lexems;
-
-    public Parser(List<Lexem> lexems) {
-        this.lexems = lexems;
-    }
-
-    private class State {
+    private class Scope {
         public LambdaNode closure;
         public Deque<Node> stack = new ArrayDeque<>();
         public Deque<Node> out = new ArrayDeque<>();
     }
 
-    private final Deque<State> scopes = new ArrayDeque<>();
+
+    private final Deque<Scope> scopes = new ArrayDeque<>();
 
     /**
      * expr ::= expr op expr | (expr) | identifier | { expr, expr } | number | map(expr, identifier -> expr) | reduce(expr, expr, identifier identifier -> expr)
@@ -43,12 +38,12 @@ public class Parser {
      * print "pi = "
      * out pi
      */
-    public Deque<Node> parse() {
+    public Deque<Node> parse(List<Lexem> lexems) {
         boolean function = false;
-        scopes.push(new State());
+        scopes.push(new Scope());
         for (int i = 0; i < lexems.size(); i++) {
             Lexem lexem = lexems.get(i);
-            State current = scopes.peek();
+            Scope current = scopes.peek();
             Deque<Node> stack = current.stack;
             Deque<Node> out = current.out;
 
@@ -156,7 +151,7 @@ public class Parser {
                     LambdaNode closure = current.closure;
                     closure.stack = out;
                     scopes.pop();
-                    State main = scopes.peek();
+                    Scope main = scopes.peek();
                     main.out.push(closure);
 
                     log.debug("main out.push {}", closure);
@@ -165,7 +160,7 @@ public class Parser {
 
                 stack.pop();
                 function = !stack.isEmpty() && !isFunction(stack.peek());
-                log.trace("ParentClose). Change state function={}. stack -> out", function);
+                log.trace("ParentClose). Change vars function={}. stack -> out", function);
                 if (!stack.isEmpty() && isFunction(stack.peek()))
                     out.push(stack.pop());
 
@@ -221,20 +216,20 @@ public class Parser {
             }
 
             if (lexem.is(LexemType.Arrow)) {
-                log.trace("Arrow. push new State");
-                State closureState = new State();
+                log.trace("Arrow. push new Scope");
+                Scope closureScope = new Scope();
 
-                scopes.push(closureState);
+                scopes.push(closureScope);
 
                 while (!out.isEmpty()) {
                     Node pop = out.pop();
                     if (pop.is(NodeType.COMMA))
                         break;
 
-                    closureState.out.push(new Node(NodeType.STORE, pop.getLocation(), pop.getContent()));
+                    closureScope.out.push(new Node(NodeType.STORE, pop.getLocation(), pop.getContent()));
                 }
 
-                closureState.closure = new LambdaNode(lexem.getLocation());
+                closureScope.closure = new LambdaNode(lexem.getLocation());
             }
 
 
@@ -258,9 +253,9 @@ public class Parser {
         }
 
 
-        State state = scopes.pop();
-        Deque<Node> stack = state.stack;
-        Deque<Node> out = state.out;
+        Scope scope = scopes.pop();
+        Deque<Node> stack = scope.stack;
+        Deque<Node> out = scope.out;
 
         log.trace("End of parse. stack -> push");
         while (!stack.isEmpty())
