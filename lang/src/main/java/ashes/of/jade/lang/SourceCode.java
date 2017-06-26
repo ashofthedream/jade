@@ -61,7 +61,7 @@ public class SourceCode {
     }
 
     public String getLineToIndex() {
-        return source.substring(newLine, index);
+        return source.substring(newLine, Math.min(index + 1, source.length()));
     }
 
     public int getIndex() {
@@ -70,9 +70,13 @@ public class SourceCode {
 
 
     public Location getLocation() {
-        return new Location(line, offset);
+        return new Location(index, line, offset);
     }
 
+
+    public boolean isDoubleQuote() {
+        return getChar() == '"';
+    }
 
     public boolean isWhitespace() {
         return !isEOF() && Character.isWhitespace(getChar());
@@ -91,7 +95,7 @@ public class SourceCode {
     }
 
     public boolean isOperator() {
-        return isPlus() ||  isMinus() || isBackSlash() || isStar();
+        return isPlus() ||  isMinus() || isBackSlash() || isStar() || isPower();
     }
 
     public boolean isPlus() {
@@ -108,6 +112,10 @@ public class SourceCode {
 
     public boolean isStar() {
         return getChar() == '*';
+    }
+
+    public boolean isPower() {
+        return getChar() == '^';
     }
 
     public boolean isAssign() {

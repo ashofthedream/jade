@@ -10,14 +10,14 @@ import org.apache.logging.log4j.Logger;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import javax.swing.table.AbstractTableModel;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Container;
-import java.awt.event.*;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.DefaultHighlighter;
+import java.awt.*;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
 import java.util.*;
+import java.util.List;
 
 
 public class Editor {
@@ -37,14 +37,13 @@ public class Editor {
         String code =
                 "var seq = {4, 6}\n" +
                 "var sequence = map(seq, i -> i * i)\n" +
-//                "var pi = 3.1415 * reduce (sequence, 0, x y -> x + y)\n" +
-//                "var pi = 1 * reduce(sequence, 1000, acc y -> acc + y)\n" +
                 "var pi = 1 * reduce(sequence, 1, acc y -> acc * y)\n" +
                 "print \"pi = \"\n" +
                 "out pi\n" +
                 "" ;
 
         text.setText(code);
+
     }
 
     private void start() {
@@ -53,10 +52,6 @@ public class Editor {
         frame.setLayout(new BorderLayout());
 
         Container container = frame.getContentPane();
-
-//        JLabel left = new JLabel("left");
-//        left.setBorder(new LineBorder(Color.black));
-//        container.add(left, BorderLayout.LINE_START);
 
 
         JMenuItem runItem = new JMenuItem("Run");
@@ -70,21 +65,21 @@ public class Editor {
         frame.setJMenuBar(menuBar);
 
 
-        JTable debug = new JTable(model);
+        Font font = new Font("Monospaced", Font.PLAIN, 13);
+        // main text area
+        text.setFont(font);
 
-
+        // bottom text area
         info.setBorder(new LineBorder(Color.black));
         info.setSize(100, 0);
         info.setEnabled(false);
+        info.setFont(font);
 
+        JTable debug = new JTable(model);
+        debug.setSize(120, 300);
         container.add(debug, BorderLayout.LINE_END);
         container.add(info, BorderLayout.PAGE_END);
         container.add(text, BorderLayout.CENTER);
-
-
-//        JLabel top = new JLabel("top");
-//        top.setBorder(new LineBorder(Color.black));
-//        container.add(top, BorderLayout.PAGE_START);
 
         JButton button = new JButton("run");
         container.add(button, BorderLayout.PAGE_START);
@@ -119,11 +114,18 @@ public class Editor {
                     .append("\n");
 
             Location location = ex.getLocation();
-            for (int i = 0; i < location.offset; i++) {
+            for (int i = 0; i < location.offset - 1; i++)
                 b.append(" ");
-            }
 
             b.append("^ ").append(ex.getMessage());
+
+
+            DefaultHighlighter.DefaultHighlightPainter error = new DefaultHighlighter.DefaultHighlightPainter(Color.red);
+            try {
+                text.getHighlighter().addHighlight(location.index, location.index + 1, error);
+            } catch (BadLocationException e) {
+                log.error("Can't highlight", ex);
+            }
 
             info.setText(b.toString());
         } catch (Exception ex) {
@@ -183,10 +185,7 @@ public class Editor {
 
 
     public static void main(String... args) {
-
-
         Editor editor = new Editor();
         SwingUtilities.invokeLater(editor::start);
-
     }
 }

@@ -36,10 +36,6 @@ public class Node {
         return type == getType();
     }
 
-    public boolean isLambda() {
-        return is(NodeType.LAMBDA);
-    }
-
     public boolean isString() {
         return is(NodeType.STRING);
     }
@@ -88,5 +84,9 @@ public class Node {
     public String toString() {
         return type + (content != null && !content.isEmpty() ? "{" + content + "}" : "" ) +
                       (location == Location.EMPTY ? "" : " " + location);
+    }
+
+    public boolean isNumber() {
+        return isInteger() || isDouble();
     }
 }

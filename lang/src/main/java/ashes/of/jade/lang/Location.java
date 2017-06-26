@@ -2,12 +2,14 @@ package ashes.of.jade.lang;
 
 public class Location {
 
-    public static final Location EMPTY = new Location(0, 0);
+    public static final Location EMPTY = new Location(0, 0, 0);
 
+    public final int index;
     public final int line;
     public final int offset;
 
-    public Location(int line, int offset) {
+    public Location(int index, int line, int offset) {
+        this.index = index;
         this.line = line;
         this.offset = offset;
     }
@@ -19,7 +21,9 @@ public class Location {
 
         Location location = (Location) o;
 
-        return line == location.line && offset == location.offset;
+        return  //index == location.index &&
+                line == location.line &&
+                offset == location.offset;
     }
 
     @Override

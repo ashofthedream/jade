@@ -22,6 +22,11 @@ public class IntNode extends Node {
     }
 
     @Override
+    public double toDouble() {
+        return value;
+    }
+
+    @Override
     public String toString() {
         return String.valueOf(toInteger());
     }

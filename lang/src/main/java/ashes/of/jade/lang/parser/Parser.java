@@ -53,13 +53,13 @@ public class Parser {
 
             if (lexem.is(LexemType.IntegerNumber)) {
                 IntNode node = parseInt(lexem);
-                log.trace("Op Plus +. stack -> out. out.push {}", node);
+                log.trace("Integer Number. stack -> out. out.push {}", node);
                 out.push(node);
             }
 
             if (lexem.is(LexemType.DoubleNumber)) {
                 DoubleNode node = parseDouble(lexem);
-                log.trace("Op Plus +. stack -> out. out.push {}", node);
+                log.trace("Double Number. stack -> out. out.push {}", node);
                 out.push(node);
             }
 
@@ -158,6 +158,7 @@ public class Parser {
                     continue;
                 }
 
+                // todo fails on input 'var seq = {-1, 2)'
                 stack.pop();
                 function = !stack.isEmpty() && !isFunction(stack.peek());
                 log.trace("ParentClose). Change vars function={}. stack -> out", function);

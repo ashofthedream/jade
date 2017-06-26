@@ -13,6 +13,20 @@ import java.util.List;
 
 public class InterpreterTest {
 
+//    @Test(expected = EvalException.class)
+//    public void evalShouldThrowAnExceptionIfSourceCodeContainsNumberAndSequenceExpression() throws Exception {
+//        String source = "var x = 5 + {0, 100}";
+//
+//        Lexer lexer = new Lexer();
+//        List<Lexem> lexems = lexer.parse(source);
+//
+//        Parser parser = new Parser();
+//        Deque<Node> nodes = parser.parse(lexems);
+//
+//        Interpreter interpreter = new Interpreter(lexer, parser);
+//        interpreter.eval(nodes);
+//    }
+
 
     @Test(expected = EvalException.class)
     public void evalShouldThrowAnExceptionIfSourceCodeContainsNumberAndSequenceExpression() throws Exception {

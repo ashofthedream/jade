@@ -1,7 +1,7 @@
 package ashes.of.jade.lang.lexer;
 
-
 import ashes.of.jade.lang.Location;
+
 
 public class Lexem {
     private final LexemType type;
@@ -16,11 +16,6 @@ public class Lexem {
 
     public Lexem(LexemType type, Location location) {
         this(type, location, "");
-    }
-
-
-    public Lexem(LexemType type) {
-        this(type, new Location(0, 0), "");
     }
 
     public LexemType getType() {

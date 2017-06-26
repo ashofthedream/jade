@@ -18,6 +18,6 @@ public class DoubleSeqNode extends Node {
 
     @Override
     public String toString() {
-        return "SEQ" + Arrays.toString(seq);
+        return Arrays.toString(seq);
     }
 }

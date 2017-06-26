@@ -13,6 +13,11 @@ import java.util.regex.Pattern;
 public class Lexer {
     private static final Logger log = LogManager.getLogger(Lexer.class);
 
+
+    private final static Pattern doublePattern = Pattern.compile("[+|-]?[0-9]+\\.[0-9]+");
+    private final static Pattern integerPattern = Pattern.compile("[+|-]?[0-9]+");
+
+
     public List<Lexem> parse(String source) {
         return parse(new SourceCode(source));
     }
@@ -38,8 +43,7 @@ public class Lexer {
 
         while (!it.isEOF()) {
             if (it.isNewLine()) {
-                Location loc = it.getLocation();
-                lexems.add(new Lexem(LexemType.NewLine, loc));
+                add(lexems, LexemType.NewLine, it.getLocation());
                 it.step();
                 it.newLine();
                 continue;
@@ -54,123 +58,17 @@ public class Lexer {
             log.trace("state: {} \u2192{}", it.getLineToIndex(), it.getLineToEnd());
 
             if (it.isLetter()) {
-                log.debug("Found letter: {}, try parse as a Identifier, Call", it.getChar());
-                Location loc = it.getLocation();
-                int letters = 0;
-                while (!it.isEOF() && it.isLetter()) {
-                    it.step();
-                    letters++;
-                }
-
-                String token = it.getString(it.getIndex() - letters, letters);
-                log.debug("Found letters: '{}' at ", token, loc);
-                switch (token) {
-                    case "map":
-                        Lexem map = new Lexem(LexemType.Map, loc);
-                        add(lexems, map);
-                        break;
-
-                    case "reduce":
-                        Lexem reduce = new Lexem(LexemType.Reduce, loc);
-                        add(lexems, reduce);
-                        break;
-
-                    case "var":
-                        Lexem var = new Lexem(LexemType.Var, loc);
-                        add(lexems, var);
-                        break;
-
-                    case "print":
-                        Lexem print = new Lexem(LexemType.Print, loc);
-                        add(lexems, print);
-                        break;
-
-                    case "out":
-                        Lexem out = new Lexem(LexemType.Out, loc);
-                        add(lexems, out);
-                        break;
-
-                    default:
-                        if (isNewLine(lexems))
-                            throw new ParseException("Identifier isn't allowed as first token", it.getLineToEnd(), loc);
-
-                        Lexem load = new Lexem(LexemType.Load, loc, token);
-                        add(lexems, load);
-                }
-
+                parseLetters(it, lexems);
                 continue;
             }
 
-            if (it.getChar() == '"') {
-                log.debug("Found letter: \", try parse as a String", it.getChar());
-                checkNewLine(it, lexems, "String isn't allowed as first token");
-
-                Location loc = it.getLocation();
-                int len = 0;
-                it.step(1);
-                while (!it.isEOF() && it.getChar() != '"' && it.getChar() != '\n') {
-                    len++;
-                    it.step(1);
-                }
-
-                String token = it.getString(it.getIndex() - len, len);
-                it.step(1);
-                Lexem string = new Lexem(LexemType.String, loc, token);
-                add(lexems, string);
+            if (it.isDoubleQuote()) {
+                parseString(it, lexems);
                 continue;
             }
 
             if (it.isDigit()) {
-                log.debug("Digit found: {}, try parse as a Integer/Double", it.getChar());
-                checkNewLine(it, lexems, "Number isn't allowed as first token");
-
-                Location loc = it.getLocation();
-                int start = it.getIndex();
-                int len = 0;
-
-                Lexem back1 = lexems.get(lexems.size() - 1);
-                if (back1.is(LexemType.Minus) || back1.is(LexemType.Plus)) {
-                    log.trace("previous lexem is +/-, check that it isn't expr");
-                    Lexem back2 = lexems.get(lexems.size() - 2);
-                    if (back2.is(LexemType.Store) ||
-                        back2.is(LexemType.Arrow) ||
-                        back2.is(LexemType.ParentOpen) ||
-                        back2.is(LexemType.Plus) ||
-                        back2.is(LexemType.Minus) ||
-                        back2.is(LexemType.Multiply) ||
-                        back2.is(LexemType.Divide) ||
-                        back2.is(LexemType.Power)) {
-                        loc = back1.getLocation();
-                        start--;
-                        len++;
-                        lexems.remove(lexems.get(lexems.size() - 1));
-                    }
-
-                }
-
-                while (!it.isEOF() && (it.isDigit() || it.isDot())) {
-                    it.step(1);
-                    len++;
-                }
-
-                String token = it.getString(start, len);
-
-                Pattern doublePattern = Pattern.compile("[+|-]?[0-9]+\\.[0-9]+");
-                Pattern integerPattern = Pattern.compile("[+|-]?[0-9]+");
-
-                LexemType type = null;
-                if (doublePattern.matcher(token).matches()) {
-                    type = LexemType.DoubleNumber;
-                } else if (integerPattern.matcher(token).matches()) {
-                    type = LexemType.IntegerNumber;
-                }
-
-                if (type == null) {
-                    throw new ParseException("Unknown token: " + token, token, loc);
-                }
-
-                Lexem number = new Lexem(type, loc, token);
-                add(lexems, number);
+                parseNumber(it, lexems);
                 continue;
             }
 
@@ -180,7 +78,7 @@ public class Lexer {
 
                 Lexem minus = removeLast(lexems);
                 if (minus.is(LexemType.Minus)) {
-                    add(lexems, new Lexem(LexemType.Arrow, minus.getLocation()));
+                    add(lexems, LexemType.Arrow, minus.getLocation());
                     it.step();
                     continue;
                 }
@@ -190,53 +88,34 @@ public class Lexer {
 
 
             if (it.isOperator()) {
-                checkNewLine(it, lexems, "Operator isn't allowed as first token");
-
-                Location loc = it.getLocation();
-                switch (it.getChar()) {
-                    case '+': lexems.add(new Lexem(LexemType.Plus, loc)); break;
-                    case '-': lexems.add(new Lexem(LexemType.Minus, loc)); break;
-                    case '/': lexems.add(new Lexem(LexemType.Divide, loc)); break;
-                    case '*': lexems.add(new Lexem(LexemType.Multiply, loc)); break;
-                }
-
-                log.info("add Operator {} at {}", it.getChar(), loc);
-                it.step();
+                parseOperator(it, lexems);
                 continue;
             }
 
             if (it.isParentOpen()) {
                 checkNewLine(it, lexems, "Symbol ( isn't allowed as first token");
-
-                Location loc = it.getLocation();
-                add(lexems, new Lexem(LexemType.ParentOpen, loc));
+                add(lexems, LexemType.ParentOpen, it.getLocation());
                 it.step();
                 continue;
             }
 
             if (it.isParentClose()) {
                 checkNewLine(it, lexems, "Symbol ) isn't allowed as first token");
-
-                Location loc = it.getLocation();
-                add(lexems, new Lexem(LexemType.ParentClose, loc));
+                add(lexems, LexemType.ParentClose, it.getLocation());
                 it.step();
                 continue;
             }
 
             if (it.isCurlyOpen()) {
                 checkNewLine(it, lexems, "Symbol { isn't allowed as first token");
-
-                Location loc = it.getLocation();
-                add(lexems, new Lexem(LexemType.CurlyOpen, loc));
+                add(lexems, LexemType.CurlyOpen, it.getLocation());
                 it.step();
                 continue;
             }
 
             if (it.isCurlyClose()) {
                 checkNewLine(it, lexems, "Symbol } isn't allowed as first token");
-
-                Location loc = it.getLocation();
-                add(lexems, new Lexem(LexemType.CurlyClose, loc));
+                add(lexems, LexemType.CurlyClose, it.getLocation());
                 it.step();
                 continue;
             }
@@ -274,28 +153,177 @@ public class Lexer {
             throw new ParseException("Unexpected symbol '" + it.getChar() + "'", it);
         }
 
-
-        add(lexems, new Lexem(LexemType.EOF, it.getLocation()));
-
-
-        System.out.println();
-        for (Lexem lexem : lexems) {
-            System.out.print(lexem + " ");
-            if (lexem.is(LexemType.NewLine) || lexem.is(LexemType.EOF))
-                System.out.println();
-
-        }
-
-        System.out.println();
-
+        add(lexems, LexemType.EOF, it.getLocation());
 
         return lexems;
     }
 
-    private void add(List<Lexem> lexems, Lexem eof) {
-        log.info("add {}", eof);
-        lexems.add(eof);
+
+    private void parseOperator(SourceCode it, List<Lexem> lexems) {
+        checkNewLine(it, lexems, "Operator isn't allowed as first token");
+
+        Location loc = it.getLocation();
+        if (it.isPlus()) {
+            add(lexems, LexemType.Plus, loc);
+            it.step();
+            return;
+        }
+
+        if (it.isMinus()) {
+            add(lexems, LexemType.Minus, loc);
+            it.step();
+            return;
+        }
+
+        Lexem last = getLast(lexems);
+        if (last.is(LexemType.Plus) ||
+                last.is(LexemType.Minus) ||
+                last.is(LexemType.Multiply) ||
+                last.is(LexemType.Divide) ||
+                last.is(LexemType.Power))
+            throw new ParseException("Unexpected operator", it.getLineToIndex(), loc);
+
+        if (it.isStar()) {
+            add(lexems, LexemType.Multiply, loc);
+            it.step();
+            return;
+        }
+
+
+        if (it.isBackSlash()) {
+            add(lexems, LexemType.Divide, loc);
+            it.step();
+            return;
+        }
+
+        if (it.isPower()) {
+            add(lexems, LexemType.Power, loc);
+            it.step();
+            return;
+        }
     }
+
+
+    private void parseNumber(SourceCode it, List<Lexem> lexems) {
+        log.debug("Digit found: {}, try parse as a Integer/Double", it.getChar());
+        checkNewLine(it, lexems, "Number isn't allowed as first token");
+
+        Location loc = it.getLocation();
+        StringBuilder b = new StringBuilder();
+        Lexem back1 = getLast(lexems);
+        if (back1.is(LexemType.Minus) || back1.is(LexemType.Plus)) {
+            log.trace("previous lexem is +/-, check that it isn't expr");
+            Lexem back2 = lexems.get(lexems.size() - 2);
+            if (back2.is(LexemType.Store) ||
+                back2.is(LexemType.Arrow) ||
+                back2.is(LexemType.ParentOpen) ||
+                back2.is(LexemType.CurlyOpen) ||
+                back2.is(LexemType.Comma) ||
+                back2.is(LexemType.Out) ||
+                back2.is(LexemType.Plus) ||
+                back2.is(LexemType.Minus) ||
+                back2.is(LexemType.Multiply) ||
+                back2.is(LexemType.Divide) ||
+                back2.is(LexemType.Power)) {
+                loc = back1.getLocation();
+
+                if (back1.is(LexemType.Plus))
+                    b.append("+");
+
+                if (back1.is(LexemType.Minus))
+                    b.append("-");
+
+                lexems.remove(getLast(lexems));
+            }
+
+        }
+
+
+        while (!it.isEOF() && (it.isDigit() || it.isDot())) {
+            b.append(it.getChar());
+            it.step(1);
+        }
+
+        String token = b.toString();
+        if (doublePattern.matcher(token).matches()) {
+            add(lexems, LexemType.DoubleNumber, loc, token);
+            return;
+        }
+
+        if (integerPattern.matcher(token).matches()) {
+            add(lexems, LexemType.IntegerNumber, loc, token);
+            return;
+        }
+
+        throw new ParseException("Invalid number: " + token, token, loc);
+    }
+
+
+    private void parseLetters(SourceCode it, List<Lexem> lexems) {
+        log.debug("Found letter: {}, try parse as a Identifier, Call", it.getChar());
+        Location loc = it.getLocation();
+        StringBuilder b = new StringBuilder();
+        while (!it.isEOF() && it.isLetter()) {
+            b.append(it.getChar());
+            it.step();
+        }
+
+        String token = b.toString();
+        log.debug("Found letters: '{}' at ", token, loc);
+        switch (token) {
+            case "map":     add(lexems, LexemType.Map, loc); break;
+            case "reduce":  add(lexems, LexemType.Reduce, loc); break;
+            case "var":     add(lexems, LexemType.Var, loc); break;
+            case "print":   add(lexems, LexemType.Print, loc); break;
+            case "out":     add(lexems, LexemType.Out, loc); break;
+
+            default:
+                if (isNewLine(lexems))
+                    throw new ParseException("Identifier isn't allowed as first token", it.getLineToEnd(), loc);
+
+                add(lexems, LexemType.Load, loc, token);
+        }
+    }
+
+
+    private void parseString(SourceCode it, List<Lexem> lexems) {
+        log.debug("Found letter: \", try parse as a String", it.getChar());
+        checkNewLine(it, lexems, "String isn't allowed as first token");
+
+        Location loc = it.getLocation();
+        it.step(1);
+        boolean escape = false;
+        StringBuilder b = new StringBuilder();
+        while (!it.isEOF() && (it.getChar() != '"' || it.getChar() == '"' && escape) && it.getChar() != '\n') {
+            escape = !escape && it.getChar() == '\\';
+            if (!escape)
+                b.append(it.getChar());
+            it.step(1);
+        }
+
+        if (it.isEOF() || !it.isDoubleQuote())
+            throw new ParseException("A string without close double quote", it.getLineToIndex(), loc);
+
+        it.step(1);
+        add(lexems, new Lexem(LexemType.String, loc, b.toString()));
+    }
+
+
+
+    private void add(List<Lexem> lexems, Lexem lexem) {
+        log.info("add {}", lexem);
+        lexems.add(lexem);
+    }
+
+    private void add(List<Lexem> lexems, LexemType type, Location location) {
+        add(lexems, new Lexem(type, location));
+    }
+
+    private void add(List<Lexem> lexems, LexemType type, Location location, String content) {
+        add(lexems, new Lexem(type, location, content));
+    }
+
+
 
     private void checkNewLine(SourceCode it, List<Lexem> lexems, String message) {
         if (isNewLine(lexems))

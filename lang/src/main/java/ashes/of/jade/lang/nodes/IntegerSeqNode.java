@@ -19,6 +19,6 @@ public class IntegerSeqNode extends Node {
 
     @Override
     public String toString() {
-        return "SEQ" + Arrays.toString(seq);
+        return Arrays.toString(seq);
     }
 }
