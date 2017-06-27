@@ -39,7 +39,7 @@ public class Parser {
      * out pi
      */
     public Deque<Node> parse(List<Lexem> lexems) {
-        boolean function = false;
+        int function = 0;
         scopes.push(new Scope());
         for (int i = 0; i < lexems.size(); i++) {
             Lexem lexem = lexems.get(i);
@@ -160,37 +160,36 @@ public class Parser {
 
                 // todo fails on input 'var seq = {-1, 2)'
                 stack.pop();
-                function = !stack.isEmpty() && !isFunction(stack.peek());
-                log.trace("ParentClose). Change vars function={}. stack -> out", function);
-                if (!stack.isEmpty() && isFunction(stack.peek()))
-                    out.push(stack.pop());
 
+                if (!stack.isEmpty() && isFunction(stack.peek())) {
+                    function--;
+                    log.trace("ParentClose). Stack isn't empty and .peek is function, decrease ", function);
+                    out.push(stack.pop());
+                }
             }
 
 
             if (lexem.is(LexemType.Map)) {
-                function = true;
+                function++;
                 Node node = new Node(NodeType.MAP);
                 log.trace("Map. function=true. stack.push {}", node);
                 stack.push(node);
             }
 
             if (lexem.is(LexemType.Reduce)) {
-                function = true;
+                function++;
                 Node node = new Node(NodeType.REDUCE);
                 log.trace("Reduce. function=true. stack.push {}", node);
                 stack.push(node);
             }
 
             if (lexem.is(LexemType.Out)) {
-                function = true;
                 Node node = new Node(NodeType.OUT);
                 log.trace("Out. function=true. stack.push {}", node);
                 stack.push(node);
             }
 
             if (lexem.is(LexemType.Print)) {
-                function = true;
                 Node node = new Node(NodeType.PRINT);
                 log.trace("Print. function=true. stack.push {}", node);
                 stack.push(node);
@@ -202,9 +201,9 @@ public class Parser {
                 while (!stack.isEmpty() && !stack.peek().is(NodeType.ParentOpen) && !stack.peek().is(NodeType.CurlyOpen))
                     out.push(stack.pop());
 
-                if (function) {
+                if (function > 0) {
                     Node node = new Node(NodeType.COMMA, lexem.getLocation());
-                    log.trace("Comma. Scope function -> out.push {}", node);
+                    log.trace("Comma. Scope function={} -> out.push {}", function, node);
                     out.push(node);
                 }
             }

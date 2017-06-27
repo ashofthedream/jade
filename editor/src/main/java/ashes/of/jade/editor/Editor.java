@@ -3,6 +3,7 @@ package ashes.of.jade.editor;
 import ashes.of.jade.lang.Location;
 import ashes.of.jade.lang.interpreter.Interpreter;
 import ashes.of.jade.lang.nodes.Node;
+import ashes.of.jade.lang.nodes.StringNode;
 import ashes.of.jade.lang.parser.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -35,12 +36,11 @@ public class Editor {
 
     {
         String code =
-                "var seq = {4, 6}\n" +
-                "var sequence = map(seq, i -> i * i)\n" +
-                "var pi = 1 * reduce(sequence, 1, acc y -> acc * y)\n" +
+                "var seq = {0, 10000}\n" +
+                "var sequence = map(seq, i -> i + i)\n" +
+                "var pi = 1 * reduce(sequence, 1, acc y -> acc + y)\n" +
                 "print \"pi = \"\n" +
-                "out pi\n" +
-                "" ;
+                "out pi\n" ;
 
         text.setText(code);
 
@@ -92,6 +92,7 @@ public class Editor {
     private void runInterpreter() {
         log.debug("runInterpreter invoked");
         try {
+            long start = System.currentTimeMillis();
             String sourceCode = text.getText();
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -106,6 +107,7 @@ public class Editor {
 
             model.clear();
             state.vars.forEach(model::add);
+            model.add("_time", new StringNode(String.format("%.3f", (System.currentTimeMillis() - start) / 1000.0 )));
             model.fireTableStructureChanged();
         } catch (ParseException ex) {
 

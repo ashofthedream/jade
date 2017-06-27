@@ -4,6 +4,7 @@ import ashes.of.jade.lang.lexer.Lexem;
 import ashes.of.jade.lang.lexer.Lexer;
 import ashes.of.jade.lang.nodes.Node;
 import ashes.of.jade.lang.nodes.NodeType;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Deque;
@@ -14,15 +15,20 @@ import static org.junit.Assert.*;
 
 public class ParserTest {
 
+    private Lexer lexer;
+    private Parser parser;
+    
+    @Before
+    public void setUp() throws Exception {
+        lexer = new Lexer();
+        parser = new Parser();
+    }
 
     @Test
     public void testAssignExprPlusMinusAndMultiply() {
         String source = "var n = (13 + 6 - 7) * 2\n";
 
-        Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
-
-        Parser parser = new Parser();
         Deque<Node> rpn = parser.parse(lexems);
 
         {
@@ -42,10 +48,7 @@ public class ParserTest {
     public void testAssignExprWithMultiplyAndPlus() {
         String source = "var n = 13 + 6 * 2\n";
 
-        Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
-
-        Parser parser = new Parser();
         Deque<Node> rpn = parser.parse(lexems);
 
         assertValue(rpn, 13);
@@ -66,10 +69,7 @@ public class ParserTest {
     public void testAssignSimpleExprWithPlus() {
         String source = "var n = 13 + 6\n";
 
-        Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
-
-        Parser parser = new Parser();
         Deque<Node> rpn = parser.parse(lexems);
 
         assertValue(rpn, 13);
@@ -85,11 +85,7 @@ public class ParserTest {
     public void testAssignInteger() {
         String source = "var n = 13\n";
 
-
-        Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
-
-        Parser parser = new Parser();
         Deque<Node> rpn = parser.parse(lexems);
 
 
@@ -101,11 +97,7 @@ public class ParserTest {
     public void testAssignDouble() {
         String source = "var n = 13.37\n";
 
-
-        Lexer lexer = new Lexer();
         List<Lexem> lexems = lexer.parse(source);
-
-        Parser parser = new Parser();
         Deque<Node> rpn = parser.parse(lexems);
 
         assertValue(rpn, 13.37);
@@ -119,34 +111,17 @@ public class ParserTest {
                         "var x = map(seq, e -> e * 2)\n";
 //                        "var x = map(seq, 5)\n";
 
-        Lexer lexer = new Lexer();
+
         List<Lexem> lexems = lexer.parse(source);
-
-        System.out.println(lexems);
-        System.out.println();
-
-        Parser parser = new Parser();
         Deque<Node> rpn = parser.parse(lexems);
 
+        // var seq = {0, 3}
+        rpn.removeLast(); // 0
+        rpn.removeLast(); // 3
+        rpn.removeLast(); // SEQ
+        rpn.removeLast(); // STORE seq
 
-        System.out.println();
-        rpn.stream()
-                .map(x -> x.getType() == NodeType.NL ? "^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ \n" : x.toString())
-                .forEach(System.out::println);
-        System.out.println();
-
-        // var seq = {0, 3} \n
-        // 0
-        // 3
-        // SEQ
-        // STORE seq
-        rpn.removeLast();
-        rpn.removeLast();
-        rpn.removeLast();
-        rpn.removeLast();
-
-        // NL
-        rpn.removeLast();
+        rpn.removeLast(); // NL
 
         // var mapped = map(seq, e -> e * 2)
         // LOAD seq
@@ -158,30 +133,6 @@ public class ParserTest {
         System.out.println(rpn);
     }
 
-    @Test
-    public void testParse() {
-        String source =
-                "var seq = {4, 6}\n" +
-                "var sequence = map(seq, i -> i * 2)\n" +
-                "var pi = 3.1415 * reduce (sequence, 0, x y -> x + y)\n" +
-                "print \"pi = \"\n" +
-                "out pi\n" +
-                "" ;
-
-
-        Lexer lexer = new Lexer();
-        List<Lexem> lexems = lexer.parse(source);
-
-        Parser parser = new Parser();
-        Deque<Node> rpn = parser.parse(lexems);
-
-
-        System.out.println();
-        rpn.stream()
-                .map(x -> x.getType() == NodeType.NL ? "^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ \n" : x.toString())
-                .forEach(System.out::println);
-        System.out.println();
-    }
 
 
     private void assertStore(Deque<Node> rpn, String var) {

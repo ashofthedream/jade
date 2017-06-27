@@ -21,16 +21,14 @@ public class Location {
 
         Location location = (Location) o;
 
-        return  //index == location.index &&
+        return  index == location.index &&
                 line == location.line &&
                 offset == location.offset;
     }
 
     @Override
     public int hashCode() {
-        int result = line;
-        result = 31 * result + offset;
-        return result;
+        return 31 * (31 * index + line) + offset;
     }
 
     @Override

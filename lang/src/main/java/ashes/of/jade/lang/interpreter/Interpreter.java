@@ -16,6 +16,8 @@ public class Interpreter {
     private static final Logger log = LogManager.getLogger(Interpreter.class);
 
 
+    private static final int REDUCE_SEQ_BATCH_SIZE = 1024;
+
     public static class Scope {
         public final Map<String, Node> vars;
         public final Deque<Node> stack;
@@ -31,6 +33,22 @@ public class Interpreter {
         
         public Scope() {
             this(new HashMap<>(), new ArrayDeque<>());
+        }
+
+        public Node load(String name) {
+            return vars.get(name);
+        }
+
+        public Node store(String name, Node node) {
+            return vars.put(name, node);
+        }
+
+        @Override
+        public String toString() {
+            return "Scope{" +
+                    "vars=" + vars +
+                    ", stack=" + stack +
+                    '}';
         }
     }
 
@@ -108,18 +126,22 @@ public class Interpreter {
             log.trace("vars  <-- {}", vars);
             log.trace("stack <-- {}", stack);
 
-            if (isOperator(node)) {
-                op(node, stack);
-            }
-
             switch (node.getType()) {
+                case ADD:
+                case SUB:
+                case MUL:
+                case DIV:
+                case POWER:     op(node, stack); break;
+
+
+
                 case INTEGER:
                 case DOUBLE:
                 case STRING:
                 case LAMBDA:    push(node, stack); break;
 
-                case STORE:     store(node, vars, stack); break;
-                case LOAD:      load(node, vars, stack); break;
+                case STORE:     store(node, stack, vars); break;
+                case LOAD:      load(vars, node, stack); break;
 
                 case OUT:       out(node, stack); break;
                 case PRINT:     print(node, stack); break;
@@ -159,11 +181,11 @@ public class Interpreter {
 
         long start = r.toInteger();
         long end = l.toInteger();
-        long[] a = new long[(int) (end - start)] ;
+        long len = (end - start) + 1;
+        long[] a = new long[(int)len];
 
-        for (long i = 0; i < end - start; i++) {
-            a[(int) i] = start + i;
-        }
+        for (int i = 0; i < len; i++)
+            a[i] = start + i;
 
         IntegerSeqNode seq = new IntegerSeqNode(a);
         log.trace("stack.push {}", node);
@@ -171,13 +193,81 @@ public class Interpreter {
     }
 
 
-    private boolean isOperator(Node node) {
-        return  node.is(NodeType.ADD) ||
-                node.is(NodeType.SUB) ||
-                node.is(NodeType.MUL) ||
-                node.is(NodeType.DIV) ||
-                node.is(NodeType.POWER);
+    private void map(Node node, Deque<Node> stack) {
+        if (stack.size() < 2)
+            throw new EvalException("Can't eval MAP. Stack size is less than two elements. ", node.getLocation());
+
+        Node lambda = stack.pop();
+        if (!lambda.is(NodeType.LAMBDA))
+            throw new EvalException("Can't eval MAP. Invalid type, expected lambda.", lambda.getLocation());
+
+        Node seq = stack.pop();
+        if (!seq.is(NodeType.INTEGERSEQ) && !seq.is(NodeType.DOUBLESEQ))
+            throw new EvalException("Can't eval REDUCE. Invalid type, expected IntegerSeq or DoubleSeq.", seq.getLocation());
+
+        log.trace("call map({}, {})", seq, lambda);
+
+        Node mapped = seq.isIntegerSeq() ?
+                map(seq.toIntegerSeq(), lambda) :
+                map(seq.toDoubleSeq(), lambda);
+
+        log.trace("stack.push {}", mapped);
+        stack.push(mapped);
     }
+
+
+
+    private Node map(IntegerSeqNode seq, Node lambda) {
+        long[] l = null;
+        double[] d = null;
+        Deque<Node> stack = new ArrayDeque<>();
+        for (int i = 0; i < seq.seq.length; i++) {
+            stack.push(new IntNode(seq.seq[i]));
+            eval(stack, lambda.getNodes());
+
+            Node result = stack.pop();
+            if (l == null && d == null) {
+                if (result.isInteger())
+                    l = new long[seq.seq.length];
+
+                else if (result.isDouble())
+                    d = new double[seq.seq.length];
+
+                else
+                    throw new IllegalStateException("Int or Double expected");
+            }
+
+            if (l != null && result.isInteger())
+                l[i] = result.toInteger();
+
+            else if (d != null && result.isDouble())
+                d[i] = result.toDouble();
+
+            else
+                throw new IllegalStateException("Int or Double expected");
+        }
+
+        return l != null ?
+                new IntegerSeqNode(l) : new DoubleSeqNode(d);
+    }
+
+    private Node map(DoubleSeqNode seq, Node lambda) {
+        double[] d = new double[seq.seq.length];
+        Deque<Node> stack = new ArrayDeque<>();
+        for (int i = 0; i < seq.seq.length; i++) {
+            stack.push(new DoubleNode(seq.seq[i]));
+            eval(stack, lambda.getNodes());
+
+            Node result = stack.pop();
+            if (!result.isDouble())
+                throw new IllegalStateException("Int or Double expected");
+
+            d[i] = result.toDouble();
+        }
+
+        return new DoubleSeqNode(d);
+    }
+
 
 
     private void reduce(Node node, Deque<Node> stack) {
@@ -203,39 +293,141 @@ public class Interpreter {
                 reduce(seq.toIntegerSeq(), n, lambda) :
                 reduce(seq.toDoubleSeq(), n, lambda);
 
+        log.trace("stack.push {}", reduced);
         stack.push(reduced);
     }
 
-    private void map(Node node, Deque<Node> stack) {
-        if (stack.size() < 2)
-            throw new EvalException("Can't eval MAP. Stack size is less than two elements. ", node.getLocation());
 
-        Node lambda = stack.pop();
-        if (!lambda.is(NodeType.LAMBDA))
-            throw new EvalException("Can't eval MAP. Invalid type, expected lambda.", lambda.getLocation());
 
-        Node seq = stack.pop();
-        if (!seq.is(NodeType.INTEGERSEQ) && !seq.is(NodeType.DOUBLESEQ))
-            throw new EvalException("Can't eval REDUCE. Invalid type, expected IntegerSeq or DoubleSeq.", seq.getLocation());
 
-        log.trace("call map({}, {})", seq, lambda);
-
-        Node mapped = seq.isIntegerSeq() ?
-                map(seq.toIntegerSeq(), lambda) :
-                map(seq.toDoubleSeq(), lambda);
-
-        stack.push(mapped);
+    interface ReduceFunction {
+        Node reduce(Node a, Node b);
     }
+
+    public static class DoubleReduceRecursiveTask extends RecursiveTask<Node> {
+
+        private final int minLen;
+        private final double[] seq;
+        private final int left;
+        private final int right;
+        private final ReduceFunction f;
+
+        public DoubleReduceRecursiveTask(int minLen, double[] seq, int left, int right, ReduceFunction f) {
+            this.minLen = minLen;
+            this.seq = seq;
+            this.left = left;
+            this.right = right;
+            this.f = f;
+        }
+
+        @Override
+        protected Node compute() {
+            int length = right - left;
+
+            if (length <= minLen)
+                return reduce(seq, left, right, f);
+
+            DoubleReduceRecursiveTask l = new DoubleReduceRecursiveTask(minLen, seq, left, left + length / 2,  f);
+            DoubleReduceRecursiveTask r = new DoubleReduceRecursiveTask(minLen, seq, left + length / 2, right, f);
+
+            ForkJoinTask<Node> fl = l.fork();
+            ForkJoinTask<Node> fr = r.fork();
+            return f.reduce(fl.join(), fr.join());
+        }
+    }
+
+
+
+    public static class LongReduceRecursiveTask extends RecursiveTask<Node> {
+
+        private final int minLen;
+        private final long[] seq;
+        private final int left;
+        private final int right;
+        private final ReduceFunction f;
+
+        public LongReduceRecursiveTask(int minLen, long[] seq, int left, int right, ReduceFunction f) {
+            this.minLen = minLen;
+            this.seq = seq;
+            this.left = left;
+            this.right = right;
+            this.f = f;
+        }
+
+        @Override
+        protected Node compute() {
+            int length = right - left;
+
+            if (length <= minLen)
+                return reduce(seq, left, right, f);
+
+            LongReduceRecursiveTask l = new LongReduceRecursiveTask(minLen, seq, left, left + length / 2,  f);
+            LongReduceRecursiveTask r = new LongReduceRecursiveTask(minLen, seq, left + length / 2, right, f);
+
+            ForkJoinTask<Node> fl = l.fork();
+            ForkJoinTask<Node> fr = r.fork();
+            return f.reduce(fl.join(), fr.join());
+        }
+    }
+
+    public static Node reduce(long[] seq, int left, int right, ReduceFunction f) {
+        Node acc = new IntNode(seq[left]);
+        for (int i = left + 1; i < right; i++)
+            acc = f.reduce(acc, new IntNode(seq[i]));
+
+        return acc;
+    }
+
+    public static Node reduce(double[] seq, int left, int right, ReduceFunction f) {
+        Node acc = new DoubleNode(seq[left]);
+        for (int i = left + 1; i < right; i++)
+            acc = f.reduce(acc, new DoubleNode(seq[i]));
+
+        return acc;
+    }
+
+    private Node reduce(IntegerSeqNode seq, Node acc, Node lambda) {
+        ReduceFunction reduce = (a, b) -> {
+            Deque<Node> stack = new ArrayDeque<>();
+            stack.push(a);
+            stack.push(b);
+            eval(stack, lambda.getNodes());
+
+            return stack.pop();
+        };
+
+        ForkJoinTask<Node> reduced = pool
+                .submit(new LongReduceRecursiveTask(REDUCE_SEQ_BATCH_SIZE, seq.seq, 0, seq.seq.length, reduce));
+
+        return reduce.reduce(acc, reduced.join());
+    }
+
+    private Node reduce(DoubleSeqNode seq, Node acc, Node lambda) {
+        ReduceFunction reduce = (a, b) -> {
+            Deque<Node> stack = new ArrayDeque<>();
+            stack.push(a);
+            stack.push(b);
+            eval(stack, lambda.getNodes());
+
+            return stack.pop();
+        };
+
+        ForkJoinTask<Node> reduced = pool
+                .submit(new DoubleReduceRecursiveTask(REDUCE_SEQ_BATCH_SIZE, seq.seq, 0, seq.seq.length, reduce));
+
+        return reduce.reduce(acc, reduced.join());
+    }
+
 
 
     /**
      * Loads value from local score and pushes it to stack
      *
-     * @param node store node
      * @param vars var scope
+     * @param node store node
      * @param stack stack
      */
-    private void load(Node node, Map<String, Node> vars, Deque<Node> stack) {
+    private void load(Map<String, Node> vars, Node node, Deque<Node> stack) {
         Node var = vars.get(node.getContent());
         if (var == null)
             throw new EvalException("Can't eval LOAD, no value found with name " + node.getContent(), node.getLocation());
@@ -248,10 +440,10 @@ public class Interpreter {
      * Stores value from stack to local scope
      *
      * @param node store node
-     * @param vars var scope
      * @param stack stack
+     * @param vars var scope
      */
-    private void store(Node node, Map<String, Node> vars, Deque<Node> stack) {
+    private void store(Node node, Deque<Node> stack, Map<String, Node> vars) {
         if (stack.isEmpty())
             throw new EvalException("Can't eval STORE. Stack is empty. ", node.getLocation());
 
@@ -331,118 +523,36 @@ public class Interpreter {
         throw new EvalException("Unknown operator", node.getLocation());
     }
 
-    private Node add(Node l, Node r) {
-        return l.isDouble() || r.isDouble() ?
-                new DoubleNode(r.toDouble() + l.toDouble()) :
-                new IntNode(r.toInteger() + l.toInteger());
+    private Node add(Node a, Node b) {
+        return a.isDouble() || b.isDouble() ?
+                new DoubleNode(a.toDouble() + b.toDouble()) :
+                new IntNode(a.toInteger() + b.toInteger());
     }
 
-    private Node subtract(Node l, Node r) {
-        return l.isDouble() || r.isDouble() ?
-                new DoubleNode(r.toDouble() - l.toDouble()) :
-                new IntNode(r.toInteger() - l.toInteger());
+    private Node subtract(Node a, Node b) {
+        return a.isDouble() || b.isDouble() ?
+                new DoubleNode(a.toDouble() - b.toDouble()) :
+                new IntNode(a.toInteger() - b.toInteger());
     }
 
-    private Node multiply(Node l, Node r) {
-        return l.isDouble() || r.isDouble() ?
-                new DoubleNode(r.toDouble() * l.toDouble()) :
-                new IntNode(r.toInteger() * l.toInteger());
+    private Node multiply(Node a, Node b) {
+        return a.isDouble() || b.isDouble() ?
+                new DoubleNode(a.toDouble() * b.toDouble()) :
+                new IntNode(a.toInteger() * b.toInteger());
     }
 
-    private Node divide(Node l, Node r) {
-        return l.isDouble() || r.isDouble() ?
-                new DoubleNode(r.toDouble() / l.toDouble()) :
-                new IntNode(r.toInteger() / l.toInteger());
+    private Node divide(Node a, Node b) {
+        return a.isDouble() || b.isDouble() ?
+                new DoubleNode(a.toDouble() / b.toDouble()) :
+                new IntNode(a.toInteger() / b.toInteger());
     }
 
-    private Node power(Node l, Node r) {
-        double pow = Math.pow(r.toDouble(), l.toDouble());
+    private Node power(Node a, Node b) {
+        double pow = Math.pow(a.toDouble(), b.toDouble());
 
-        return l.isDouble() || r.isDouble() ?
+        return a.isDouble() || b.isDouble() ?
                 new DoubleNode(pow) :
                 new IntNode(Math.round(pow));
-    }
-
-
-    private Node map(IntegerSeqNode seq, Node lambda) {
-        long[] l = null;
-        double[] d = null;
-        Deque<Node> stack = new ArrayDeque<>();
-        for (int i = 0; i < seq.seq.length; i++) {
-            stack.push(new IntNode(seq.seq[i]));
-            eval(stack, lambda.getNodes());
-
-            Node result = stack.pop();
-            if (l == null && d == null) {
-                if (result.isInteger())
-                    l = new long[seq.seq.length];
-
-                else if (result.isDouble())
-                    d = new double[seq.seq.length];
-
-                else
-                    throw new IllegalStateException("Int or Double expected");
-            }
-
-            if (l != null && result.isInteger())
-                l[i] = result.toInteger();
-
-            else if (d != null && result.isDouble())
-                d[i] = result.toDouble();
-
-            else
-                throw new IllegalStateException("Int or Double expected");
-        }
-
-        return l != null ?
-                new IntegerSeqNode(l) : new DoubleSeqNode(d);
-    }
-
-    private Node map(DoubleSeqNode seq, Node lambda) {
-        double[] d = new double[seq.seq.length];
-        Deque<Node> stack = new ArrayDeque<>();
-        for (int i = 0; i < seq.seq.length; i++) {
-            stack.push(new DoubleNode(seq.seq[i]));
-            eval(stack, lambda.getNodes());
-
-            Node result = stack.pop();
-            if (!result.isDouble())
-                throw new IllegalStateException("Int or Double expected");
-
-            d[i] = result.toDouble();
-        }
-
-        return new DoubleSeqNode(d);
-    }
-
-    private Node reduce(IntegerSeqNode seq, Node n, Node lambda) {
-        Node acc = n;
-
-        for (int i = 1; i < seq.seq.length; i++) {
-            Deque<Node> stack = new ArrayDeque<>();
-            stack.push(acc);
-            stack.push(new IntNode(seq.seq[i]));
-            eval(stack, lambda.getNodes());
-
-            acc = stack.pop();
-        }
-
-        return acc;
-    }
-
-    private Node reduce(DoubleSeqNode seq, Node n, Node lambda) {
-        Node acc = n;
-
-        Deque<Node> stack = new ArrayDeque<>();
-        for (int i = 1; i < seq.seq.length; i++) {
-            stack.push(acc);
-            stack.push(new DoubleNode(seq.seq[i]));
-            eval(stack, lambda.getNodes());
-
-            acc = stack.pop();
-        }
-
-        return acc;
     }
 }
 
