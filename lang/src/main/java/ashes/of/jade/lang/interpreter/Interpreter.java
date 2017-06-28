@@ -525,26 +525,26 @@ public class Interpreter {
 
     private Node add(Node a, Node b) {
         return a.isDouble() || b.isDouble() ?
-                new DoubleNode(a.toDouble() + b.toDouble()) :
-                new IntNode(a.toInteger() + b.toInteger());
+                new DoubleNode(a.getLocation(), a.toDouble() + b.toDouble()) :
+                new IntNode(a.getLocation(),a.toInteger() + b.toInteger());
     }
 
     private Node subtract(Node a, Node b) {
         return a.isDouble() || b.isDouble() ?
-                new DoubleNode(a.toDouble() - b.toDouble()) :
-                new IntNode(a.toInteger() - b.toInteger());
+                new DoubleNode(a.getLocation(),a.toDouble() - b.toDouble()) :
+                new IntNode(a.getLocation(),a.toInteger() - b.toInteger());
     }
 
     private Node multiply(Node a, Node b) {
         return a.isDouble() || b.isDouble() ?
-                new DoubleNode(a.toDouble() * b.toDouble()) :
-                new IntNode(a.toInteger() * b.toInteger());
+                new DoubleNode(a.getLocation(),a.toDouble() * b.toDouble()) :
+                new IntNode(a.getLocation(),a.toInteger() * b.toInteger());
     }
 
     private Node divide(Node a, Node b) {
         return a.isDouble() || b.isDouble() ?
-                new DoubleNode(a.toDouble() / b.toDouble()) :
-                new IntNode(a.toInteger() / b.toInteger());
+                new DoubleNode(a.getLocation(),a.toDouble() / b.toDouble()) :
+                new IntNode(a.getLocation(),a.toInteger() / b.toInteger());
     }
 
     private Node power(Node a, Node b) {

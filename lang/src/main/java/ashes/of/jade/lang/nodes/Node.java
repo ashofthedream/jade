@@ -36,6 +36,15 @@ public class Node {
         return type == getType();
     }
 
+    public boolean is(NodeType... types) {
+        for (NodeType type : types) {
+            if (!is(type))
+                return false;
+        }
+
+        return true;
+    }
+
     public boolean isString() {
         return is(NodeType.STRING);
     }

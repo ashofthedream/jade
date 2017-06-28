@@ -53,19 +53,19 @@ public class Parser {
 
             if (lexem.is(LexemType.IntegerNumber)) {
                 IntNode node = parseInt(lexem);
-                log.trace("Integer Number. stack -> out. out.push {}", node);
+                log.trace("Integer Number. out.push {}", node);
                 out.push(node);
             }
 
             if (lexem.is(LexemType.DoubleNumber)) {
                 DoubleNode node = parseDouble(lexem);
-                log.trace("Double Number. stack -> out. out.push {}", node);
+                log.trace("Double Number. out.push {}", node);
                 out.push(node);
             }
 
             if (lexem.is(LexemType.String)) {
                 StringNode node = parseString(lexem);
-                log.trace("Op Plus +. stack -> out. out.push {}", node);
+                log.trace("Op Plus +. out.push {}", node);
                 out.push(node);
             }
 
@@ -124,10 +124,16 @@ public class Parser {
 
 
             if (lexem.is(LexemType.CurlyClose)) {
+                if (out.size() < 2)
+                    throw new ParseException("Invalid symbol }, sequence should contains at two expressions", "", lexem.getLocation());
+
+                // todo out should be at least 2 nodes.
                 log.trace("CurlyClose). stack -> out");
                 while (!stack.isEmpty() && !stack.peek().is(NodeType.CurlyOpen))
                     out.push(stack.pop());
 
+                if (stack.isEmpty())
+                    throw new ParseException("Invalid symbol }, no sequence start found", "", lexem.getLocation());
                 stack.pop();
                 Node node = new Node(NodeType.SEQ);
                 log.trace("CurlyClose}. stack.push {}", node);
@@ -158,7 +164,9 @@ public class Parser {
                     continue;
                 }
 
-                // todo fails on input 'var seq = {-1, 2)'
+                if (stack.isEmpty())
+                    throw new ParseException("Unexpected symbol )", "", lexem.getLocation());
+
                 stack.pop();
 
                 if (!stack.isEmpty() && isFunction(stack.peek())) {
@@ -171,26 +179,26 @@ public class Parser {
 
             if (lexem.is(LexemType.Map)) {
                 function++;
-                Node node = new Node(NodeType.MAP);
+                Node node = new Node(NodeType.MAP, lexem.getLocation());
                 log.trace("Map. function=true. stack.push {}", node);
                 stack.push(node);
             }
 
             if (lexem.is(LexemType.Reduce)) {
                 function++;
-                Node node = new Node(NodeType.REDUCE);
-                log.trace("Reduce. function=true. stack.push {}", node);
+                Node node = new Node(NodeType.REDUCE, lexem.getLocation());
+                log.trace("Reduce. function++. stack.push {}", node);
                 stack.push(node);
             }
 
             if (lexem.is(LexemType.Out)) {
-                Node node = new Node(NodeType.OUT);
+                Node node = new Node(NodeType.OUT, lexem.getLocation());
                 log.trace("Out. function=true. stack.push {}", node);
                 stack.push(node);
             }
 
             if (lexem.is(LexemType.Print)) {
-                Node node = new Node(NodeType.PRINT);
+                Node node = new Node(NodeType.PRINT, lexem.getLocation());
                 log.trace("Print. function=true. stack.push {}", node);
                 stack.push(node);
             }

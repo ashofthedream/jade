@@ -92,6 +92,7 @@ public class Editor {
     private void runInterpreter() {
         log.debug("runInterpreter invoked");
         try {
+            text.getHighlighter().removeAllHighlights();
             long start = System.currentTimeMillis();
             String sourceCode = text.getText();
 
