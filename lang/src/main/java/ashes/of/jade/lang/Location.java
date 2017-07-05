@@ -4,14 +4,26 @@ public class Location {
 
     public static final Location EMPTY = new Location(0, 0, 0);
 
-    public final int index;
-    public final int line;
-    public final int offset;
+    private final int index;
+    private final int line;
+    private final int offset;
 
     public Location(int index, int line, int offset) {
         this.index = index;
         this.line = line;
         this.offset = offset;
+    }
+
+    public int getIndex() {
+        return index;
+    }
+
+    public int getLine() {
+        return line;
+    }
+
+    public int getOffset() {
+        return offset;
     }
 
     @Override

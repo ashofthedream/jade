@@ -75,7 +75,7 @@ public class SourceCodeTest {
     public void getLineToIndexShouldReturnPartOfCurrentLineFromStartToIndex() throws Exception {
         SourceCode code = new SourceCode("var a = 10\nvar b = a + 0");
 
-        code.step(9);
+        code.step(8);
         assertEquals("var a = 1", code.getLineToIndex());
     }
 

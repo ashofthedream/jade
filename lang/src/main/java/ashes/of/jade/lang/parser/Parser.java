@@ -40,6 +40,8 @@ public class Parser {
      */
     public Deque<Node> parse(List<Lexem> lexems) {
         int function = 0;
+        int sequence = 0;
+
         scopes.push(new Scope());
         for (int i = 0; i < lexems.size(); i++) {
             Lexem lexem = lexems.get(i);
@@ -52,18 +54,27 @@ public class Parser {
             log.trace("out   <-- {}", out);
 
             if (lexem.is(LexemType.IntegerNumber)) {
+                if (checkStateForNewExpr(stack, out))
+                    throw new ParseException(lexem.getLocation(), "Unexpected integer");
+
                 IntNode node = parseInt(lexem);
                 log.trace("Integer Number. out.push {}", node);
                 out.push(node);
             }
 
             if (lexem.is(LexemType.DoubleNumber)) {
+                if (checkStateForNewExpr(stack, out))
+                    throw new ParseException(lexem.getLocation(), "Unexpected double");
+
                 DoubleNode node = parseDouble(lexem);
                 log.trace("Double Number. out.push {}", node);
                 out.push(node);
             }
 
             if (lexem.is(LexemType.String)) {
+                if (checkStateForNewExpr(stack, out))
+                    throw new ParseException(lexem.getLocation(), "Unexpected string");
+
                 StringNode node = parseString(lexem);
                 log.trace("Op Plus +. out.push {}", node);
                 out.push(node);
@@ -117,6 +128,10 @@ public class Parser {
             }
 
             if (lexem.is(LexemType.CurlyOpen)) {
+                if (checkStateForNewExpr(stack, out))
+                    throw new ParseException(lexem.getLocation(), "Unexpected symbol {");
+
+                sequence++;
                 Node node = new Node(NodeType.CurlyOpen, lexem.getLocation());
                 log.trace("CurlyOpen{. stack.push {}", node);
                 stack.push(node);
@@ -125,7 +140,7 @@ public class Parser {
 
             if (lexem.is(LexemType.CurlyClose)) {
                 if (out.size() < 2)
-                    throw new ParseException("Invalid symbol }, sequence should contains at two expressions", "", lexem.getLocation());
+                    throw new ParseException(lexem.getLocation(), "Unexpected symbol }, sequence should contains at two expressions");
 
                 // todo out should be at least 2 nodes.
                 log.trace("CurlyClose). stack -> out");
@@ -133,8 +148,10 @@ public class Parser {
                     out.push(stack.pop());
 
                 if (stack.isEmpty())
-                    throw new ParseException("Invalid symbol }, no sequence start found", "", lexem.getLocation());
+                    throw new ParseException(lexem.getLocation(), "Unexpected symbol }, no sequence start found");
+
                 stack.pop();
+                sequence--;
                 Node node = new Node(NodeType.SEQ);
                 log.trace("CurlyClose}. stack.push {}", node);
                 stack.push(node);
@@ -165,7 +182,7 @@ public class Parser {
                 }
 
                 if (stack.isEmpty())
-                    throw new ParseException("Unexpected symbol )", "", lexem.getLocation());
+                    throw new ParseException(lexem.getLocation(), "Unexpected symbol )");
 
                 stack.pop();
 
@@ -249,6 +266,9 @@ public class Parser {
 
 
             if (lexem.is(LexemType.NewLine) || lexem.is(LexemType.EOF)) {
+                if (sequence > 0)
+                    throw new ParseException(lexem.getLocation(), "Unexpected EOF");
+
                 log.trace("NewLine | EOF. stack -> pop");
                 while (!stack.isEmpty())
                     out.push(stack.pop());
@@ -260,7 +280,6 @@ public class Parser {
             }
         }
 
-
         Scope scope = scopes.pop();
         Deque<Node> stack = scope.stack;
         Deque<Node> out = scope.out;
@@ -270,6 +289,19 @@ public class Parser {
             out.push(stack.pop());
 
         return out;
+    }
+
+    private boolean checkStateForNewExpr(Deque<Node> stack, Deque<Node> out) {
+        return !out.isEmpty() && (
+                !isOperator(stack.peek()) &&
+                !stack.peek().is(NodeType.ParentOpen) &&
+                !stack.peek().is(NodeType.CurlyOpen)) && (
+                out.peek().is(NodeType.INTEGER) ||
+                out.peek().is(NodeType.DOUBLE) ||
+                out.peek().is(NodeType.INTEGERSEQ)  ||
+                out.peek().is(NodeType.DOUBLESEQ)  ||
+                out.peek().is(NodeType.SEQ) ||
+                out.peek().is(NodeType.STRING));
     }
 
     private Node checkAndPop(Deque<Node> stack, String msg, Object... args) {

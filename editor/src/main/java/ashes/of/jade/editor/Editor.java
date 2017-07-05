@@ -91,10 +91,11 @@ public class Editor {
 
     private void runInterpreter() {
         log.debug("runInterpreter invoked");
+        String sourceCode = text.getText();
         try {
             text.getHighlighter().removeAllHighlights();
             long start = System.currentTimeMillis();
-            String sourceCode = text.getText();
+
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             PrintStream stream = new PrintStream(baos);
@@ -112,12 +113,25 @@ public class Editor {
             model.fireTableStructureChanged();
         } catch (ParseException ex) {
 
+            Location loc = ex.getLocation();
+            int startLine = loc.getIndex();
+            for (; startLine > 0; startLine--) {
+                if (sourceCode.charAt(startLine) == '\n')
+                    break;
+            }
+
+            int endLine = loc.getIndex();
+            for (; endLine < sourceCode.length(); endLine++) {
+                if (sourceCode.charAt(endLine) == '\n')
+                    break;
+            }
+
             StringBuilder b = new StringBuilder()
-                    .append(ex.getLine())
+                    .append(sourceCode.substring(startLine, endLine))
                     .append("\n");
 
             Location location = ex.getLocation();
-            for (int i = 0; i < location.offset - 1; i++)
+            for (int i = 0; i < location.getOffset() - 1; i++)
                 b.append(" ");
 
             b.append("^ ").append(ex.getMessage());
@@ -125,7 +139,7 @@ public class Editor {
 
             DefaultHighlighter.DefaultHighlightPainter error = new DefaultHighlighter.DefaultHighlightPainter(Color.red);
             try {
-                text.getHighlighter().addHighlight(location.index, location.index + 1, error);
+                text.getHighlighter().addHighlight(location.getIndex(), location.getIndex() + 1, error);
             } catch (BadLocationException e) {
                 log.error("Can't highlight", ex);
             }

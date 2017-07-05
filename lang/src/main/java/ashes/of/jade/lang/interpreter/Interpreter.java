@@ -169,15 +169,15 @@ public class Interpreter {
      */
     private void sequence(Node node, Deque<Node> stack) {
         if (stack.size() < 2)
-            throw new EvalException("Can't create sequence. Stack size is less than two elements. ", node.getLocation());
+            throw new EvalException(node.getLocation(), "Can't create sequence. Stack size is less than two elements. ");
 
         Node l = stack.pop();
         if (!l.isInteger())
-            throw new EvalException("Can't create sequence. Only Integer is allowed. ", l.getLocation());
+            throw new EvalException(l.getLocation(), "Can't create sequence. Only Integer is allowed. ");
 
         Node r = stack.pop();
         if (!r.isInteger())
-            throw new EvalException("Can't create sequence. Only Integer is allowed. ", r.getLocation());
+            throw new EvalException(r.getLocation(), "Can't create sequence. Only Integer is allowed. ");
 
         long start = r.toInteger();
         long end = l.toInteger();
@@ -195,15 +195,15 @@ public class Interpreter {
 
     private void map(Node node, Deque<Node> stack) {
         if (stack.size() < 2)
-            throw new EvalException("Can't eval MAP. Stack size is less than two elements. ", node.getLocation());
+            throw new EvalException(node.getLocation(), "Can't eval MAP. Stack size is less than two elements. ");
 
         Node lambda = stack.pop();
         if (!lambda.is(NodeType.LAMBDA))
-            throw new EvalException("Can't eval MAP. Invalid type, expected lambda.", lambda.getLocation());
+            throw new EvalException(lambda.getLocation(), "Can't eval MAP. Invalid type, expected lambda.");
 
         Node seq = stack.pop();
         if (!seq.is(NodeType.INTEGERSEQ) && !seq.is(NodeType.DOUBLESEQ))
-            throw new EvalException("Can't eval REDUCE. Invalid type, expected IntegerSeq or DoubleSeq.", seq.getLocation());
+            throw new EvalException(seq.getLocation(), "Can't eval REDUCE. Invalid type, expected IntegerSeq or DoubleSeq.");
 
         log.trace("call map({}, {})", seq, lambda);
 
@@ -272,19 +272,19 @@ public class Interpreter {
 
     private void reduce(Node node, Deque<Node> stack) {
         if (stack.size() < 3)
-            throw new EvalException("Can't eval REDUCE. Stack size is less than three elements. ", node.getLocation());
+            throw new EvalException(node.getLocation(), "Can't eval REDUCE. Stack size is less than three elements. ");
 
         Node lambda = stack.pop();
         if (!lambda.is(NodeType.LAMBDA))
-            throw new EvalException("Can't eval REDUCE. Invalid type, expected lambda.", lambda.getLocation());
+            throw new EvalException(lambda.getLocation(), "Can't eval REDUCE. Invalid type, expected lambda.");
 
         Node n = stack.pop();
         if (!n.is(NodeType.INTEGER) && !n.is(NodeType.DOUBLE))
-            throw new EvalException("Can't eval REDUCE. Invalid type, expected Integer or Double.", n.getLocation());
+            throw new EvalException(n.getLocation(), "Can't eval REDUCE. Invalid type, expected Integer or Double.");
 
         Node seq = stack.pop();
         if (!seq.is(NodeType.INTEGERSEQ) && !seq.is(NodeType.DOUBLESEQ))
-            throw new EvalException("Can't eval REDUCE. Invalid type, expected IntegerSeq or DoubleSeq.", seq.getLocation());
+            throw new EvalException(seq.getLocation(), "Can't eval REDUCE. Invalid type, expected IntegerSeq or DoubleSeq.");
 
 
         log.trace("call reduce({}, {}, {})", seq, n, lambda);
@@ -430,7 +430,7 @@ public class Interpreter {
     private void load(Map<String, Node> vars, Node node, Deque<Node> stack) {
         Node var = vars.get(node.getContent());
         if (var == null)
-            throw new EvalException("Can't eval LOAD, no value found with name " + node.getContent(), node.getLocation());
+            throw new EvalException(node.getLocation(), "Can't eval LOAD, no value found with name ", node.getContent());
 
         log.trace("vars.get {} stack.push {}", node.getContent(), var);
         stack.push(var);
@@ -445,7 +445,7 @@ public class Interpreter {
      */
     private void store(Node node, Deque<Node> stack, Map<String, Node> vars) {
         if (stack.isEmpty())
-            throw new EvalException("Can't eval STORE. Stack is empty. ", node.getLocation());
+            throw new EvalException(node.getLocation(), "Can't eval STORE. Stack is empty. ");
 
         Node pop = stack.pop();
 
@@ -462,12 +462,12 @@ public class Interpreter {
      */
     private void out(Node node, Deque<Node> stack) {
         if (stack.isEmpty())
-            throw new EvalException("Can't eval OUT. Stack is empty. ", node.getLocation());
+            throw new EvalException(node.getLocation(), "Can't eval OUT. Stack is empty. ");
 
         Node pop = stack.pop();
         log.trace("out {}", pop);
         if (!pop.isInteger() && !pop.isIntegerSeq() && !pop.isDouble() && !pop.isDoubleSeq())
-            throw new EvalException("Invalid type for out: Integer, Double, Integer[], Double[] are allowed", pop.getLocation());
+            throw new EvalException(pop.getLocation(), "Invalid type for out: Integer, Double, Integer[], Double[] are allowed");
 
         out.println(pop);
     }
@@ -480,12 +480,12 @@ public class Interpreter {
      */
     private void print(Node node, Deque<Node> stack) {
         if (stack.isEmpty())
-            throw new EvalException("Can't eval PRINT. Stack is empty. ", node.getLocation());
+            throw new EvalException(node.getLocation(), "Can't eval PRINT. Stack is empty. ");
         Node pop = stack.pop();
 
         log.trace("print {}", pop);
         if (!pop.isString())
-            throw new EvalException("Invalid type for print: only String is allowed", pop.getLocation());
+            throw new EvalException(pop.getLocation(), "Invalid type for print: only String is allowed");
 
         out.print(pop.toString());
     }
@@ -496,15 +496,15 @@ public class Interpreter {
      */
     private void op(Node node, Deque<Node> stack) {
         if (stack.size() < 2)
-            throw new EvalException("Can't eval OP. Stack size is less than two elements. ", node.getLocation());
+            throw new EvalException(node.getLocation(), "Can't eval OP. Stack size is less than two elements. ");
 
         Node b = stack.pop();
         if (!b.isNumber())
-            throw new EvalException("Can't eval OP. Invalid type, expected Number.", b.getLocation());
+            throw new EvalException(b.getLocation(), "Can't eval OP. Invalid type, expected Number.");
 
         Node a = stack.pop();
         if (!a.isNumber())
-            throw new EvalException("Can't eval OP. Invalid type, expected Number.", a.getLocation());
+            throw new EvalException(a.getLocation(), "Can't eval OP. Invalid type, expected Number.");
 
         log.trace("operator: {} {} {}", node, a, b);
         Node result = op(node, a, b);
@@ -520,7 +520,7 @@ public class Interpreter {
             case POWER: return power(a, b);
         }
 
-        throw new EvalException("Unknown operator", node.getLocation());
+        throw new EvalException(node.getLocation(), "Unexpected operator");
     }
 
     private Node add(Node a, Node b) {

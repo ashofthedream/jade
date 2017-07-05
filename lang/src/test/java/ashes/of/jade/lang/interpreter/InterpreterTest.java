@@ -1,24 +1,20 @@
-package ashes.of.jade.lang;
+package ashes.of.jade.lang.interpreter;
 
-import ashes.of.jade.lang.interpreter.EvalException;
-import ashes.of.jade.lang.interpreter.Interpreter;
+import ashes.of.jade.lang.Location;
 import ashes.of.jade.lang.interpreter.Interpreter.Scope;
-import ashes.of.jade.lang.lexer.Lexem;
 import ashes.of.jade.lang.lexer.Lexer;
 import ashes.of.jade.lang.nodes.IntegerSeqNode;
 import ashes.of.jade.lang.nodes.Node;
-import ashes.of.jade.lang.parser.ParseException;
 import ashes.of.jade.lang.parser.Parser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
-import java.util.Deque;
-import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -46,7 +42,7 @@ public class InterpreterTest {
             fail("Eval should fail");
         } catch (EvalException e) {
             log.warn("Can't eval", e);
-            assertEquals(new Location(13, 1, 14), e.getLocation());
+            Assert.assertEquals(new Location(13, 1, 14), e.getLocation());
         }
     }
 
@@ -161,18 +157,6 @@ public class InterpreterTest {
     }
 
 
-    @Test
-    public void evalShouldFailIfExprIsInvalid() {
-        try {
-            interpreter.eval("var a = 2 4");
-
-            fail("Eval should fail");
-        } catch (EvalException e) {
-            log.warn("Can't eval", e);
-            assertEquals(new Location(16, 1, 17), e.getLocation());
-        }
-    }
-
 
     /*
      * seq
@@ -189,18 +173,29 @@ public class InterpreterTest {
                 new long[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, seq.seq);
     }
 
+    @Test
+    public void evalShouldFail1() {
+        try {
+            interpreter.eval("var seq = {0, 1000} + {2}");
+
+            fail("Eval should fail");
+        } catch (EvalException e) {
+            log.warn("Can't eval", e);
+            assertEquals(new Location(13, 1, 14), e.getLocation());
+        }
+    }
 
 
 
     @Test
-    public void evalShouldFailWithSequence1() {
+    public void evalShouldFail2() {
         try {
-            interpreter.eval("var seq = {0, 2{");
+            interpreter.eval("out 7 2");
 
             fail("Eval should fail");
         } catch (EvalException e) {
-            log.warn("Can't parse", e);
-            assertEquals(new Location(16, 1, 17), e.getLocation());
+            log.warn("Can't eval", e);
+            assertEquals(new Location(13, 1, 14), e.getLocation());
         }
     }
 
@@ -211,21 +206,8 @@ public class InterpreterTest {
 
             fail("Eval should fail");
         } catch (EvalException e) {
-            log.warn("Can't parse", e);
+            log.warn("Can't eval", e);
             assertEquals(new Location(13, 1, 14), e.getLocation());
-        }
-    }
-
-
-    @Test
-    public void evalShouldFailWithSequence4() {
-        try {
-            interpreter.eval("var seq = {0, 2}{0, 2}");
-
-            fail("Eval should fail");
-        } catch (EvalException e) {
-            log.warn("Can't parse", e);
-            assertEquals(new Location(16, 1, 17), e.getLocation());
         }
     }
 

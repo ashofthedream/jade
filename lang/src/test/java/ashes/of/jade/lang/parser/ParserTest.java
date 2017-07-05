@@ -138,6 +138,33 @@ public class ParserTest {
     }
 
     @Test
+    public void parseShouldThrowAnExceptionIfExpressionContainsTwoIntegersWithoutOperation() {
+        try {
+            List<Lexem> lexems = lexer.parse("var a = 2 4");
+            Deque<Node> rpn = parser.parse(lexems);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(10, 1, 11), e.getLocation());
+        }
+    }
+
+    @Test
+    public void parseShouldThrowAnExceptionIfExpressionContainsTwoDoublesWithoutOperation() {
+        try {
+            List<Lexem> lexems = lexer.parse("var a = 2.0 0.4");
+            Deque<Node> rpn = parser.parse(lexems);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(12, 1, 13), e.getLocation());
+        }
+    }
+
+
+    @Test
     public void testAssignDouble() {
         List<Lexem> lexems = lexer.parse("var n = 13.37\n");
         Deque<Node> rpn = parser.parse(lexems);
@@ -150,6 +177,19 @@ public class ParserTest {
     public void parserShouldThrowAnExceptionIfSeqDeclarationEndsWithWrongBrace() {
         try {
             List<Lexem> lexems = lexer.parse("var seq = {-1, 2)");
+            Deque<Node> rpn = parser.parse(lexems);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(16, 1, 17), e.getLocation());
+        }
+    }
+
+    @Test
+    public void parserShouldThrowAnExceptionIfSeqDeclarationEndsWithWrongOpenCurlyBrace() {
+        try {
+            List<Lexem> lexems = lexer.parse("var seq = {0, 2{");
             Deque<Node> rpn = parser.parse(lexems);
 
             fail("Parse should fail");
@@ -186,6 +226,37 @@ public class ParserTest {
         } catch (ParseException e) {
             log.warn("Can't parse", e);
             assertEquals(new Location(16, 1, 17), e.getLocation());
+        }
+    }
+
+
+    @Test
+    public void parseShouldThrowAnExceptionIfExpressionContainsTwoSeqWithoutOperation() {
+        try {
+            List<Lexem> lexems = lexer.parse("var seq = {0, 2} {0, 2}");
+            Deque<Node> rpn = parser.parse(lexems);
+
+            log.error("Parser should fail, ut output is: {}", rpn);
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(17, 1, 18), e.getLocation());
+        }
+    }
+
+
+
+    @Test
+    public void parseShouldThrowAnExceptionIfExpressionContainsTwoStringsWithoutOperation() {
+        try {
+            List<Lexem> lexems = lexer.parse("print \"hello\" \"world\"");
+            Deque<Node> rpn = parser.parse(lexems);
+
+            log.error("Parser should fail, ut output is: {}", rpn);
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(14, 1, 15), e.getLocation());
         }
     }
 

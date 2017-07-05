@@ -55,7 +55,7 @@ public class Lexer {
                 continue;
             }
 
-            log.trace("state: {} \u2192{}", it.getLineToIndex(), it.getLineToEnd());
+            log.trace("state: {} \u2192{}", it.getLineToEnd());
 
             if (it.isLetter()) {
                 parseLetters(it, lexems);
@@ -83,7 +83,7 @@ public class Lexer {
                     continue;
                 }
 
-                throw new ParseException("Expected -> but first char is ", minus.toString(), minus.getLocation());
+                throw new ParseException(minus.getLocation(), "Expected -> but first char is ");
             }
 
 
@@ -137,11 +137,11 @@ public class Lexer {
 
                 Lexem id = removeLast(lexems);
                 if (!id.is(LexemType.Load))
-                    throw new ParseException("Load expected", it);
+                    throw new ParseException(it.getLocation(), "Load expected");
 
                 Lexem var = removeLast(lexems);
                 if (!var.is(LexemType.Var))
-                    throw new ParseException("Load expected", it);
+                    throw new ParseException(it.getLocation(), "Var expected");
 
                 Lexem lexem = new Lexem(LexemType.Store, var.getLocation(), id.getContent());
                 lexems.add(lexem);
@@ -150,7 +150,7 @@ public class Lexer {
                 continue;
             }
 
-            throw new ParseException("Unexpected symbol '" + it.getChar() + "'", it);
+            throw new ParseException(it.getLocation(), "Unexpected symbol '%s'", it.getChar());
         }
 
         add(lexems, LexemType.EOF, it.getLocation());
@@ -176,12 +176,8 @@ public class Lexer {
         }
 
         Lexem last = getLast(lexems);
-        if (last.is(LexemType.Plus) ||
-                last.is(LexemType.Minus) ||
-                last.is(LexemType.Multiply) ||
-                last.is(LexemType.Divide) ||
-                last.is(LexemType.Power))
-            throw new ParseException("Unexpected operator", it.getLineToIndex(), loc);
+        if (isOperator(last))
+            throw new ParseException(loc, "Unexpected operator %s", it.getLocation());
 
         if (it.isStar()) {
             add(lexems, LexemType.Multiply, loc);
@@ -201,6 +197,14 @@ public class Lexer {
             it.step();
             return;
         }
+    }
+
+    private boolean isOperator(Lexem lexem) {
+        return lexem.is(LexemType.Plus) ||
+                lexem.is(LexemType.Minus) ||
+                lexem.is(LexemType.Multiply) ||
+                lexem.is(LexemType.Divide) ||
+                lexem.is(LexemType.Power);
     }
 
 
@@ -255,7 +259,7 @@ public class Lexer {
             return;
         }
 
-        throw new ParseException("Invalid number: " + token, token, loc);
+        throw new ParseException(loc, "Invalid number: %s", token);
     }
 
 
@@ -278,8 +282,7 @@ public class Lexer {
             case "out":     add(lexems, LexemType.Out, loc); break;
 
             default:
-                if (isNewLine(lexems))
-                    throw new ParseException("Identifier isn't allowed as first token", it.getLineToEnd(), loc);
+                checkNewLine(loc, lexems, "Identifier isn't allowed as first token");
 
                 add(lexems, LexemType.Load, loc, token);
         }
@@ -302,7 +305,7 @@ public class Lexer {
         }
 
         if (it.isEOF() || !it.isDoubleQuote())
-            throw new ParseException("A string without close double quote", it.getLineToIndex(), loc);
+            throw new ParseException(loc, "Unexpected EOF: A string without close double quote");
 
         it.step(1);
         add(lexems, new Lexem(LexemType.String, loc, b.toString()));
@@ -324,10 +327,14 @@ public class Lexer {
     }
 
 
+    private void checkNewLine(Location location, List<Lexem> lexems, String message) {
+        if (isNewLine(lexems))
+            throw new ParseException(location, message);
+    }
 
     private void checkNewLine(SourceCode it, List<Lexem> lexems, String message) {
         if (isNewLine(lexems))
-            throw new ParseException(message, it);
+            throw new ParseException(it.getLocation(), message);
     }
 
     private boolean isNewLine(List<Lexem> lexems) {
