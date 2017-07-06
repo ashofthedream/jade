@@ -32,56 +32,45 @@ public class Node {
         return type;
     }
 
-    public boolean is(NodeType type) {
-        return type == getType();
+    public Deque<Node> getNodes() {
+        return null;
     }
 
-    public boolean is(NodeType... types) {
-        for (NodeType type : types) {
-            if (!is(type))
-                return false;
-        }
-
-        return true;
+    public boolean is(NodeType type) {
+        return type == getType();
     }
 
     public boolean isString() {
         return is(NodeType.STRING);
     }
 
-    public boolean isDoubleSeq() {
-        return is(NodeType.DOUBLESEQ);
-    }
 
     public boolean isDouble() {
         return is(NodeType.DOUBLE);
-    }
-
-    public boolean isIntegerSeq() {
-        return is(NodeType.INTEGERSEQ);
-    }
-
-    public boolean isInteger() {
-        return is(NodeType.INTEGER);
-    }
-
-    public Deque<Node> getNodes() {
-        return null;
-    }
-
-    public long toInteger() {
-        return 0;
-    }
-
-    public IntegerSeqNode toIntegerSeq() {
-        return null;
     }
 
     public double toDouble() {
         return 0;
     }
 
-    public DoubleSeqNode toDoubleSeq() {
+    public boolean isInteger() {
+        return is(NodeType.INTEGER);
+    }
+
+    public long toInteger() {
+        return 0;
+    }
+
+    public boolean isNumber() {
+        return isInteger() || isDouble();
+    }
+
+
+    public boolean isSeq() {
+        return is(NodeType.SEQUENCE);
+    }
+
+    public SequenceNode toSeq() {
         return null;
     }
 
@@ -93,9 +82,5 @@ public class Node {
     public String toString() {
         return type + (content != null && !content.isEmpty() ? "{" + content + "}" : "" ) +
                       (location == Location.EMPTY ? "" : " " + location);
-    }
-
-    public boolean isNumber() {
-        return isInteger() || isDouble();
     }
 }

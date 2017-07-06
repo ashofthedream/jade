@@ -143,18 +143,18 @@ public class Parser {
                     throw new ParseException(lexem.getLocation(), "Unexpected symbol }, sequence should contains at two expressions");
 
                 // todo out should be at least 2 nodes.
-                log.trace("CurlyClose). stack -> out");
+                log.trace("CurlyClose. stack -> out");
                 while (!stack.isEmpty() && !stack.peek().is(NodeType.CurlyOpen))
                     out.push(stack.pop());
 
                 if (stack.isEmpty())
                     throw new ParseException(lexem.getLocation(), "Unexpected symbol }, no sequence start found");
 
-                stack.pop();
+                Node open = stack.pop();
                 sequence--;
-                Node node = new Node(NodeType.SEQ);
-                log.trace("CurlyClose}. stack.push {}", node);
-                stack.push(node);
+                Node node = new Node(NodeType.NEWSEQUENCE, open.getLocation());
+                log.trace("CurlyClose. out.push {}", node);
+                out.push(node);
             }
 
 
@@ -227,7 +227,7 @@ public class Parser {
                     out.push(stack.pop());
 
                 if (function > 0) {
-                    Node node = new Node(NodeType.COMMA, lexem.getLocation());
+                    Node node = new Node(NodeType.Comma, lexem.getLocation());
                     log.trace("Comma. Scope function={} -> out.push {}", function, node);
                     out.push(node);
                 }
@@ -248,7 +248,7 @@ public class Parser {
 
                 while (!out.isEmpty()) {
                     Node pop = out.pop();
-                    if (pop.is(NodeType.COMMA))
+                    if (pop.is(NodeType.Comma))
                         break;
 
                     closureScope.out.push(new Node(NodeType.STORE, pop.getLocation(), pop.getContent()));
@@ -259,6 +259,9 @@ public class Parser {
 
 
             if (lexem.is(LexemType.Load)) {
+                if (checkStateForNewExpr(stack, out))
+                    throw new ParseException(lexem.getLocation(), "Unexpected variable: %s", lexem.getContent());
+
                 Node node = new Node(NodeType.LOAD, lexem.getLocation(), lexem.getContent());
                 log.trace("Arrow. out.push {}", node);
                 out.push(node);
@@ -288,19 +291,21 @@ public class Parser {
         while (!stack.isEmpty())
             out.push(stack.pop());
 
+        log.trace("out   <-- {}", out);
+
         return out;
     }
 
     private boolean checkStateForNewExpr(Deque<Node> stack, Deque<Node> out) {
-        return !out.isEmpty() && (
+        return !out.isEmpty() && !stack.isEmpty() && (
                 !isOperator(stack.peek()) &&
                 !stack.peek().is(NodeType.ParentOpen) &&
                 !stack.peek().is(NodeType.CurlyOpen)) && (
+                out.peek().is(NodeType.LOAD) ||
                 out.peek().is(NodeType.INTEGER) ||
                 out.peek().is(NodeType.DOUBLE) ||
-                out.peek().is(NodeType.INTEGERSEQ)  ||
-                out.peek().is(NodeType.DOUBLESEQ)  ||
-                out.peek().is(NodeType.SEQ) ||
+                out.peek().is(NodeType.SEQUENCE)  ||
+                out.peek().is(NodeType.NEWSEQUENCE) ||
                 out.peek().is(NodeType.STRING));
     }
 

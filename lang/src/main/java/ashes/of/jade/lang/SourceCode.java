@@ -61,7 +61,7 @@ public class SourceCode {
     }
 
     public String getLineToIndex() {
-        return source.substring(newLine, Math.min(index + 1, source.length()));
+        return source.substring(newLine, Math.min(index, source.length()));
     }
 
     public int getIndex() {

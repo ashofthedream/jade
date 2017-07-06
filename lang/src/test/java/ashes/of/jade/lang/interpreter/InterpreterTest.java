@@ -3,8 +3,7 @@ package ashes.of.jade.lang.interpreter;
 import ashes.of.jade.lang.Location;
 import ashes.of.jade.lang.interpreter.Interpreter.Scope;
 import ashes.of.jade.lang.lexer.Lexer;
-import ashes.of.jade.lang.nodes.IntegerSeqNode;
-import ashes.of.jade.lang.nodes.Node;
+import ashes.of.jade.lang.nodes.*;
 import ashes.of.jade.lang.parser.Parser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -166,36 +165,52 @@ public class InterpreterTest {
         String source = "var seq = {0 * 5, 5 + 5}";
         Scope scope = interpreter.eval(source);
 
-        IntegerSeqNode seq = scope.load("seq")
-                .toIntegerSeq();
+        SequenceNode seq = scope.load("seq")
+                .toSeq();
 
-        assertArrayEquals("{0 * 5, 5 + 5} -> 0..10",
-                new long[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, seq.seq);
+        assertArrayEquals("{0 * 5, 5 + 5} -> 0..10", new IntNode[] {
+                new IntNode(0), new IntNode(1), new IntNode(2),
+                new IntNode(3), new IntNode(4), new IntNode(5),
+                new IntNode(6), new IntNode(7), new IntNode(8),
+                new IntNode(9), new IntNode(10)},
+                seq.seq);
     }
 
+
     @Test
-    public void evalShouldFail1() {
+    public void evalSрouldFailIfExpressionContainsSeqPlusInvalidSeq() {
         try {
             interpreter.eval("var seq = {0, 1000} + {2}");
 
             fail("Eval should fail");
         } catch (EvalException e) {
             log.warn("Can't eval", e);
-            assertEquals(new Location(13, 1, 14), e.getLocation());
+            assertEquals(new Location(10, 1, 11), e.getLocation());
         }
     }
 
-
-
     @Test
-    public void evalShouldFail2() {
+    public void evalSрouldFailIfExpressionContainsSeqPlusInteger() {
         try {
-            interpreter.eval("out 7 2");
+            interpreter.eval("var seq = {0, 5} + 5");
 
             fail("Eval should fail");
         } catch (EvalException e) {
             log.warn("Can't eval", e);
-            assertEquals(new Location(13, 1, 14), e.getLocation());
+            assertEquals(new Location(10, 1, 11), e.getLocation());
+        }
+    }
+
+
+    @Test
+    public void evalSHouldFailIfExpressionContainsSeqPlusDouble() {
+        try {
+            interpreter.eval("var seq = {0, 5} + 5.0");
+
+            fail("Eval should fail");
+        } catch (EvalException e) {
+            log.warn("Can't eval", e);
+            assertEquals(new Location(10, 1, 11), e.getLocation());
         }
     }
 
@@ -216,11 +231,14 @@ public class InterpreterTest {
         String source = "var seq = {reduce(map({0, 1}, x -> x + x), 0, a b -> a + b), reduce(map({0, 3}, x -> x + x), 0, a b -> a + b)}";
         Scope scope = interpreter.eval(source);
 
-        IntegerSeqNode seq = scope.load("seq")
-                .toIntegerSeq();
+        SequenceNode seq = scope.load("seq")
+                .toSeq();
 
-        assertArrayEquals("{reduced 2, reduced 12} -> 2..12",
-                new long[] {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, seq.seq);
+        assertArrayEquals("{reduced 2, reduced 12} -> 2..12", new IntNode[] {
+                new IntNode(2), new IntNode(3), new IntNode(4), new IntNode(5),
+                new IntNode(6), new IntNode(7), new IntNode(8), new IntNode(9),
+                new IntNode(10), new IntNode(11), new IntNode(12) },
+        seq.seq);
     }
 
 
@@ -306,8 +324,10 @@ public class InterpreterTest {
 
         Node a = scope.load("seq");
 
-        assertTrue(a.isIntegerSeq());
-        assertArrayEquals("0..5 -> 0..25", new long[] {0, 1, 4, 9, 16, 25}, a.toIntegerSeq().seq);
+        assertTrue(a.isSeq());
+        assertArrayEquals("0..5 -> 0..25", new IntNode[] {
+                new IntNode(0), new IntNode(1), new IntNode(4),
+                new IntNode(9), new IntNode(16), new IntNode(25)}, a.toSeq().seq);
     }
 
     @Test
@@ -316,8 +336,11 @@ public class InterpreterTest {
 
         Node a = scope.load("seq");
 
-        assertTrue(a.isDoubleSeq());
-        assertArrayEquals("0..5 -> 0..25", new double[] {0., 1., 4., 9., 16., 25.}, a.toDoubleSeq().seq, 0.0001);
+        assertTrue(a.isSeq());
+        assertArrayEquals("0..5 -> 0..25", new DoubleNode[] {
+                new DoubleNode(0.), new DoubleNode(1.), new DoubleNode(4.),
+                new DoubleNode(9.), new DoubleNode(16.), new DoubleNode(25.)},
+                a.toSeq().seq);
     }
 
 

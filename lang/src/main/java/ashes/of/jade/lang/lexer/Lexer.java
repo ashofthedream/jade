@@ -55,7 +55,7 @@ public class Lexer {
                 continue;
             }
 
-            log.trace("state: {} \u2192{}", it.getLineToEnd());
+            log.trace("state: {} \u2192{}", it.getLineToIndex(), it.getLineToEnd());
 
             if (it.isLetter()) {
                 parseLetters(it, lexems);

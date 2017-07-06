@@ -2,26 +2,57 @@ package ashes.of.jade.lang.nodes;
 
 public enum NodeType {
 
-
-    COMMA,
-
+    /**
+     * Temporal nodes
+     */
+    Comma,
     CurlyOpen,
-    CurlyClose,
     ParentOpen,
-    ParentClose,
 
 
+    /**
+     * Integer number
+     */
     INTEGER,
-    INTEGERSEQ,
+
+    /**
+     * Double number
+     */
     DOUBLE,
-    DOUBLESEQ,
+
+    /**
+     * String
+     */
     STRING,
 
-    SEQ,
+    /**
+     * Sequence of integer or doubles
+     */
+    SEQUENCE,
 
+    /**
+     * Create a new sequence
+     */
+    NEWSEQUENCE,
+
+    /**
+     * Call map method
+     */
     MAP,
+
+    /**
+     * Call reduce method
+     */
     REDUCE,
+
+    /**
+     * Print string to output stream
+     */
     PRINT,
+
+    /**
+     * Print integer, double or sequence to output stream
+     */
     OUT,
 
     NL, EOF,
@@ -63,5 +94,8 @@ public enum NodeType {
      */
     DIV,
 
+    /**
+     * Raise first element from to the power of the second element from stack
+     */
     POWER
 }

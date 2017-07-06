@@ -27,6 +27,21 @@ public class IntNode extends Node {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        IntNode intNode = (IntNode) o;
+
+        return value == intNode.value;
+    }
+
+    @Override
+    public int hashCode() {
+        return (int) (value ^ (value >>> 32));
+    }
+
+    @Override
     public String toString() {
         return String.valueOf(toInteger());
     }

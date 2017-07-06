@@ -261,15 +261,44 @@ public class ParserTest {
     }
 
     @Test
-    public void testOutWithSimpleValue() {
-        String source = "out 13\n";
-
-        List<Lexem> lexems = lexer.parse(source);
+    public void parseShouldReturnValidStackIfOutContainsOneInteger() {
+        List<Lexem> lexems = lexer.parse("out 13\n");
         Deque<Node> rpn = parser.parse(lexems);
 
         assertValue(rpn, 13);
         assertNode(rpn, NodeType.OUT);
     }
+
+
+    @Test
+    public void parseShouldFailIfOutExprContainsMoreThanOneVariables() {
+        try {
+            List<Lexem> lexems = lexer.parse(
+                    "var a = 1\n" +
+                    "var b = 2\n" +
+                    "out a b");
+            Deque<Node> rpn = parser.parse(lexems);
+
+            fail("Eval should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(26, 3, 7), e.getLocation());
+        }
+    }
+
+    @Test
+    public void parseShouldFailIfOutExprContainsMoreThanOneInteger() {
+        try {
+            List<Lexem> lexems = lexer.parse("out 7 2");
+            Deque<Node> rpn = parser.parse(lexems);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(6, 1, 7), e.getLocation());
+        }
+    }
+
 
     @Test
     public void testSequenceIdInMapParams() throws Exception {
@@ -284,7 +313,7 @@ public class ParserTest {
         // var seq = {0, 3}
         rpn.removeLast(); // 0
         rpn.removeLast(); // 3
-        rpn.removeLast(); // SEQ
+        rpn.removeLast(); // NEWSEQUENCE
         rpn.removeLast(); // STORE seq
 
         rpn.removeLast(); // NL

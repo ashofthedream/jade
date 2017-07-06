@@ -45,6 +45,6 @@ public class Location {
 
     @Override
     public String toString() {
-        return line + ":" + offset;
+        return line + ":" + offset + "(" + index + ")";
     }
 }
