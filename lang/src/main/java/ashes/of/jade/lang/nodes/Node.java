@@ -70,6 +70,10 @@ public class Node {
         return is(NodeType.SEQUENCE);
     }
 
+    public boolean isLambda() {
+        return is(NodeType.LAMBDA);
+    }
+
     public SequenceNode toSeq() {
         return null;
     }

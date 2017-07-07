@@ -14,57 +14,23 @@ import java.util.concurrent.*;
 
 public class Interpreter {
     private static final Logger log = LogManager.getLogger(Interpreter.class);
-    
-    private static final int REDUCE_SEQ_BATCH_SIZE = 1024;
-    
-    public static class Scope {
-        public final Map<String, Node> vars;
-        public final Deque<Node> stack;
-
-        public Scope(Map<String, Node> vars, Deque<Node> stack) {
-            this.vars = vars;
-            this.stack = stack;
-        }
-        
-        public Scope(Deque<Node> stack) {
-            this(new HashMap<>(), stack);
-        }        
-        
-        public Scope() {
-            this(new HashMap<>(), new ArrayDeque<>());
-        }
-
-        public Node load(String name) {
-            return vars.get(name);
-        }
-
-        public Node store(String name, Node node) {
-            return vars.put(name, node);
-        }
-
-        @Override
-        public String toString() {
-            return "Scope{" +
-                    "vars=" + vars +
-                    ", stack=" + stack +
-                    '}';
-        }
-    }
 
 
+    private static final int DEFAULT_PARALLELISM_MIN_SIZE = 1024 * 1024;
 
-    private final ForkJoinPool pool = ForkJoinPool.commonPool();
+
     private final Lexer lexer;
     private final Parser parser;
+
+    // todo move to settings?
     private PrintStream out = System.out;
+    private ForkJoinPool threadPool = ForkJoinPool.commonPool();
+    private int mapParallelismSize = DEFAULT_PARALLELISM_MIN_SIZE;
+    private int reduceParallelismSize = DEFAULT_PARALLELISM_MIN_SIZE;
 
     public Interpreter(Lexer lexer, Parser parser) {
         this.lexer = lexer;
         this.parser = parser;
-    }
-
-    public Interpreter() {
-        this(new Lexer(), new Parser());
     }
 
 
@@ -76,26 +42,34 @@ public class Interpreter {
         this.out = out;
     }
 
+    public ForkJoinPool getThreadPool() {
+        return threadPool;
+    }
+
+    public void setThreadPool(ForkJoinPool threadPool) {
+        this.threadPool = threadPool;
+    }
+
+    public int getMapParallelismSize() {
+        return mapParallelismSize;
+    }
+
+    public void setMapParallelismSize(int mapParallelismSize) {
+        this.mapParallelismSize = mapParallelismSize;
+    }
+
+    public int getReduceParallelismSize() {
+        return reduceParallelismSize;
+    }
+
+    public void setReduceParallelismSize(int reduceParallelismSize) {
+        this.reduceParallelismSize = reduceParallelismSize;
+    }
 
     public Scope eval(String text) {
-        log.info("source: {}", text);
-
+        log.info("eval source: {}", text);
         List<Lexem> lexems = lexer.parse(text);
-
-        System.out.println(lexems);
-        System.out.println();
-
         Deque<Node> rpn = parser.parse(lexems);
-
-        System.out.println();
-        System.out.println("byLineStack:");
-        rpn.stream()
-                .map(x -> x.getType() == NodeType.NL ? "^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ \n" : x.toString())
-                .forEach(System.out::println);
-
-        System.out.println();
-        System.out.println();
-
         return eval(rpn);
     }
 
@@ -108,12 +82,11 @@ public class Interpreter {
     }
 
     public Scope eval(Scope scope, Deque<Node> nodes) {
-        log.debug("eval {} nodes: {}", nodes.size(), nodes);
-        Map<String, Node> vars = scope.vars;
-        Deque<Node> stack = scope.stack;
+        long start = System.currentTimeMillis();
+        log.info("eval {} nodes: {}", nodes.size(), nodes);
         
-        log.trace("vars  <-- {}", vars);
-        log.trace("stack <-- {}", stack);
+        log.trace("vars  <-- {}", scope.getVars());
+        log.trace("stack <-- {}", scope.getStack());
 
         Iterator<Node> it = nodes.descendingIterator();
         while (it.hasNext()) {
@@ -122,128 +95,127 @@ public class Interpreter {
                 continue;
 
             log.debug("eval: {}", node);
-            log.trace("vars  <-- {}", vars);
-            log.trace("stack <-- {}", stack);
+            log.trace("vars  <-- {}", scope.getVars());
+            log.trace("stack <-- {}", scope.getStack());
 
             switch (node.getType()) {
                 case ADD:
                 case SUB:
                 case MUL:
                 case DIV:
-                case POWER:     op(node, stack); break;
+                case POWER:         op(node, scope); break;
 
                 case INTEGER:
                 case DOUBLE:
                 case STRING:
-                case LAMBDA:        push(node, stack); break;
+                case LAMBDA:        push(node, scope); break;
 
-                case STORE:         store(node, stack, vars); break;
-                case LOAD:          load(vars, node, stack); break;
+                case STORE:         store(node, scope); break;
+                case LOAD:          load(node, scope); break;
 
-                case OUT:           out(node, stack); break;
-                case PRINT:         print(node, stack); break;
-                case MAP:           map(node, stack); break;
-                case REDUCE:        reduce(node, stack); break;
-                case NEWSEQUENCE:   sequence(node, stack); break;
+                case OUT:           out(node, scope); break;
+                case PRINT:         print(node, scope); break;
+                case MAP:           map(node, scope); break;
+                case REDUCE:        reduce(node, scope); break;
+                case NEWSEQUENCE:   sequence(node, scope); break;
             }
         }
 
-
-        log.debug("eval ends with stack {} and vars {}", stack, vars);
+        log.info("Eval ends after {}ms", System.currentTimeMillis() - start);
+        log.debug("vars  <-- {}", scope.getVars());
+        log.debug("stack <-- {}", scope.getStack());
         return scope;
     }
 
-    private void push(Node node, Deque<Node> stack) {
-        log.trace("stack.push {}", node);
-        stack.push(node);
+    /**
+     * Pushes node to stack
+     *
+     * @param node node to push
+     * @param scope current scope
+     */
+    private void push(Node node, Scope scope) {
+        scope.push(node);
     }
 
     /**
      * Creates sequence and pushes it to stack
      *
-     * @param node NEWSEQUENCE node
-     * @param stack stack
+     * @param node create sequence node
+     * @param scope current scope
      */
-    private void sequence(Node node, Deque<Node> stack) {
-        if (stack.size() < 2)
-            throw new EvalException(node.getLocation(), "Can't create sequence. Stack size is less than two elements. ");
+    private void sequence(Node node, Scope scope) {
+        scope.checkStackSize(node.getLocation(), 2);
+        Node r = scope.pop(Node::isNumber, "Expected Integer");
+        Node l = scope.pop(Node::isNumber, "Expected Integer");
 
-        Node l = stack.pop();
-        if (!l.isInteger())
-            throw new EvalException(l.getLocation(), "Can't create sequence. Only Integer is allowed. ");
-
-        Node r = stack.pop();
-        if (!r.isInteger())
-            throw new EvalException(r.getLocation(), "Can't create sequence. Only Integer is allowed. ");
-
-        SequenceNode seq = new SequenceNode(node.getLocation(), r.toInteger(), l.toInteger());
-        log.trace("stack.push {}", node);
-        stack.push(seq);
+        SequenceNode seq = new SequenceNode(node.getLocation(), l.toInteger(), r.toInteger());
+        scope.push(seq);
     }
 
 
-    private void map(Node node, Deque<Node> stack) {
-        if (stack.size() < 2)
-            throw new EvalException(node.getLocation(), "Stack size is less than two elements. ");
-
-        Node lambda = stack.pop();
-        if (!lambda.is(NodeType.LAMBDA))
-            throw new EvalException(lambda.getLocation(), "Invalid type, expected lambda.");
-
-        Node seq = stack.pop();
-        if (!seq.is(NodeType.SEQUENCE))
-            throw new EvalException(seq.getLocation(), "Invalid type, expected IntegerSeq or DoubleSeq.");
+    private void map(Node node, Scope scope) {
+        scope.checkStackSize(node.getLocation(), 2);
+        Node lambda = scope.pop(Node::isLambda, "Expected Lambda");
+        Node seq = scope.pop(Node::isSeq, "Expected Sequence");
 
         Node mapped = map(seq.toSeq(), lambda);
-
-        log.trace("stack.push {}", mapped);
-        stack.push(mapped);
+        scope.push(mapped);
     }
 
     private Node map(SequenceNode seq, Node lambda) {
-        log.trace("call map({}, {})", seq, lambda);
+        log.debug("call map({}, {})", seq, lambda);
 
-        Deque<Node> stack = new ArrayDeque<>();
-        for (int i = 0; i < seq.seq.length; i++) {
-            stack.push(seq.seq[i]);
-            eval(stack, lambda.getNodes());
-
-            Node result = stack.pop();
-            if (!result.isDouble() && !result.isInteger())
-                throw new IllegalStateException("Int or Double expected");
-
-            seq.seq[i] = result;
+        long time = System.currentTimeMillis();
+        if (seq.size() < getMapParallelismSize()) {
+            map(seq, lambda, 0, seq.size());
+            log.trace("map.elapsed all: {}", System.currentTimeMillis() - time);
+            return seq;
         }
 
+        int threads = threadPool.getParallelism();
+        int batchSize = seq.size() / (threads * 4 + 1);
+        List<ForkJoinTask<?>> futures = new ArrayList<>();
+        for (int start = 0; start < seq.size(); start += batchSize)
+            futures.add(submitMap(seq, lambda, start, Math.min(seq.size(), start + batchSize)));
+
+        futures.forEach(ForkJoinTask::join);
+        log.trace("map.elapsed all: {} (tasks: {})", System.currentTimeMillis() - time, futures.size());
         return seq;
     }
 
+    private ForkJoinTask<?> submitMap(SequenceNode seq, Node lambda, int start, int end) {
+        return threadPool.submit(() -> map(seq, lambda, start, end));
+    }
+
+    private void map(SequenceNode seq, Node lambda, int start, int end) {
+        long time = System.currentTimeMillis();
+        Deque<Node> stack = new ArrayDeque<>();
+        for (int i = start; i < end; i++) {
+            stack.push(seq.seq[i]);
+            Scope scope = eval(stack, lambda.getNodes());
+            Node result = scope.pop(Node::isNumber, "Expected number");
+            seq.seq[i] = result;
+        }
+
+        log.trace("map.elapsed task: {}", System.currentTimeMillis() - time);
+    }
 
 
-    private void reduce(Node node, Deque<Node> stack) {
-        if (stack.size() < 3)
-            throw new EvalException(node.getLocation(), "Stack size is less than three elements. ");
-
-        Node lambda = stack.pop();
-        if (!lambda.is(NodeType.LAMBDA))
-            throw new EvalException(lambda.getLocation(), "Invalid type, expected lambda.");
-
-        Node acc = stack.pop();
-        if (!acc.isNumber())
-            throw new EvalException(acc.getLocation(), "Invalid type, expected Integer or Double.");
-
-        Node seq = stack.pop();
-        if (!seq.is(NodeType.SEQUENCE))
-            throw new EvalException(seq.getLocation(), "Invalid type, expected IntegerSeq or DoubleSeq.");
+    private void reduce(Node node, Scope scope) {
+        scope.checkStackSize(node.getLocation(), 3);
+        Node lambda = scope.pop(Node::isLambda, "Expected Lambda");
+        Node acc = scope.pop(Node::isNumber, "Expected Number");
+        Node seq = scope.pop(Node::isSeq, "Expected Sequence");
 
         Node reduced = reduce(seq.toSeq(), acc, lambda);
 
-        log.trace("stack.push {}", reduced);
-        stack.push(reduced);
+        scope.push(reduced);
     }
 
     private Node reduce(SequenceNode seq, Node acc, Node lambda) {
-        log.trace("call reduce({}, {}, {})", seq, acc, lambda);
+        log.debug("call reduce({}, {}, {})", seq, acc, lambda);
+
+        long start = System.currentTimeMillis();
         ReduceFunction reduce = (a, b) -> {
             Deque<Node> stack = new ArrayDeque<>();
             stack.push(a);
@@ -253,10 +225,13 @@ public class Interpreter {
             return stack.pop();
         };
 
-        ForkJoinTask<Node> reduced = pool
-                .submit(new ReduceRecursiveTask(REDUCE_SEQ_BATCH_SIZE, seq.seq, 0, seq.seq.length, reduce));
+        ForkJoinTask<Node> task = threadPool
+                .submit(new ReduceRecursiveTask(getReduceParallelismSize(), seq.seq, 0, seq.seq.length, reduce));
 
-        return reduce.reduce(acc, reduced.join());
+        Node reduced = reduce.reduce(acc, task.join());
+        log.trace("reduce.elapsed {} (getReduceParallelismSize = {})",
+                System.currentTimeMillis() - start, getReduceParallelismSize());
+        return reduced;
     }
 
 
@@ -264,34 +239,28 @@ public class Interpreter {
     /**
      * Loads value from local score and pushes it to stack
      *
-     * @param vars var scope
      * @param node store node
-     * @param stack stack
+     * @param scope current scope
      */
-    private void load(Map<String, Node> vars, Node node, Deque<Node> stack) {
-        Node var = vars.get(node.getContent());
+    private void load(Node node, Scope scope) {
+        Node var = scope.load(node.getContent());
         if (var == null)
-            throw new EvalException(node.getLocation(), "Can't eval LOAD, no value found with name ", node.getContent());
+            throw new EvalException(node.getLocation(), "No value found with name %s", node.getContent());
 
-        log.trace("vars.get {} stack.push {}", node.getContent(), var);
-        stack.push(var);
+        scope.push(var);
     }
 
     /**
      * Stores value from stack to local scope
      *
      * @param node store node
-     * @param stack stack
-     * @param vars var scope
+     * @param scope current scope
      */
-    private void store(Node node, Deque<Node> stack, Map<String, Node> vars) {
-        if (stack.isEmpty())
-            throw new EvalException(node.getLocation(), "Stack is empty.");
+    private void store(Node node, Scope scope) {
+        scope.checkStackNotEmpty(node.getLocation());
 
-        Node pop = stack.pop();
-
-        log.trace("vars.put {} -> {}", node.getContent(), node);
-        vars.put(node.getContent(), pop);
+        Node pop = scope.pop();
+        scope.store(node.getContent(), pop);
     }
 
 
@@ -299,16 +268,12 @@ public class Interpreter {
      * Prints integer or double values to the output stream
      *
      * @param node print node
-     * @param stack stack
+     * @param scope current scope
      */
-    private void out(Node node, Deque<Node> stack) {
-        if (stack.isEmpty())
-            throw new EvalException(node.getLocation(), "Stack is empty.");
+    private void out(Node node, Scope scope) {
+        scope.checkStackNotEmpty(node.getLocation());
 
-        Node pop = stack.pop();
-        log.trace("out {}", pop);
-        if (!pop.isNumber() && !pop.isSeq())
-            throw new EvalException(pop.getLocation(), "Invalid type for out: Integer, Double or Sequence are allowed");
+        Node pop = scope.pop(n -> n.isNumber() || n.isSeq(), "Expected Number or Sequence");
 
         out.println(pop);
     }
@@ -317,17 +282,13 @@ public class Interpreter {
      * Prints string value to the output stream
      *
      * @param node print node
-     * @param stack stack
+     * @param scope current scope
      */
-    private void print(Node node, Deque<Node> stack) {
-        if (stack.isEmpty())
-            throw new EvalException(node.getLocation(), "Can't eval PRINT. Stack is empty. ");
-        Node pop = stack.pop();
+    private void print(Node node, Scope scope) {
+        scope.checkStackNotEmpty(node.getLocation());
+        Node pop = scope.pop(Node::isString, "Expected String");
 
         log.trace("print {}", pop);
-        if (!pop.isString())
-            throw new EvalException(pop.getLocation(), "Invalid type for print: only String is allowed");
-
         out.print(pop.toString());
     }
 
@@ -335,25 +296,18 @@ public class Interpreter {
     /**
      * A op B
      */
-    private void op(Node node, Deque<Node> stack) {
-        if (stack.size() < 2)
-            throw new EvalException(node.getLocation(), "Stack size is less than two elements. ");
-
-        Node b = stack.pop();
-        if (!b.isNumber())
-            throw new EvalException(b.getLocation(), "Invalid type, expected Number.");
-
-        Node a = stack.pop();
-        if (!a.isNumber())
-            throw new EvalException(a.getLocation(), "Invalid type, expected Number.");
+    private void op(Node node, Scope scope) {
+        scope.checkStackSize(node.getLocation(), 2);
+        Node b = scope.pop(Node::isNumber, "Expected Number");
+        Node a = scope.pop(Node::isNumber, "Expected Number");
 
         log.trace("operator: {} {} {}", node, a, b);
         Node result = op(node, a, b);
-        push(result, stack);
+        scope.push(result);
     }
 
-    private Node op(Node node, Node a, Node b) {
-        switch (node.getType()) {
+    private Node op(Node op, Node a, Node b) {
+        switch (op.getType()) {
             case ADD:   return add(a, b);
             case SUB:   return subtract(a, b);
             case MUL:   return multiply(a, b);
@@ -361,7 +315,7 @@ public class Interpreter {
             case POWER: return power(a, b);
         }
 
-        throw new EvalException(node.getLocation(), "Unexpected operator");
+        throw new EvalException(op.getLocation(), "Unexpected operator: %s", op);
     }
 
     private Node add(Node a, Node b) {
@@ -396,4 +350,3 @@ public class Interpreter {
                 new IntNode(Math.round(pow));
     }
 }
-

@@ -20,6 +20,11 @@ public class SequenceNode extends Node {
         return this;
     }
 
+
+    public int size() {
+        return seq.length;
+    }
+
     @Override
     public String toString() {
         return "[" + seq[0] + ".." + seq[seq.length - 1] + "]";

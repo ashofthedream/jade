@@ -1,7 +1,6 @@
 package ashes.of.jade.lang.interpreter;
 
 import ashes.of.jade.lang.Location;
-import ashes.of.jade.lang.interpreter.Interpreter.Scope;
 import ashes.of.jade.lang.lexer.Lexer;
 import ashes.of.jade.lang.nodes.*;
 import ashes.of.jade.lang.parser.Parser;
@@ -14,6 +13,7 @@ import org.junit.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 
 import static org.junit.Assert.*;
 

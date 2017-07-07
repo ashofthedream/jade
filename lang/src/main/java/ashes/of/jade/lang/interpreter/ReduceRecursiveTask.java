@@ -9,9 +9,9 @@ import java.util.concurrent.RecursiveTask;
 public class ReduceRecursiveTask extends RecursiveTask<Node> {
 
     /**
-     * Minimum length below which algorithm won't partition the task
+     * Minimum sequence length below which algorithm won't partition the task
      */
-    private final int minLen;
+    private final int minParallelSize;
 
     /**
      * Sequence
@@ -33,8 +33,8 @@ public class ReduceRecursiveTask extends RecursiveTask<Node> {
      */
     private final ReduceFunction f;
 
-    public ReduceRecursiveTask(int minLen, Node[] seq, int left, int right, ReduceFunction f) {
-        this.minLen = minLen;
+    public ReduceRecursiveTask(int minParallelSize, Node[] seq, int left, int right, ReduceFunction f) {
+        this.minParallelSize = minParallelSize;
         this.seq = seq;
         this.left = left;
         this.right = right;
@@ -45,11 +45,11 @@ public class ReduceRecursiveTask extends RecursiveTask<Node> {
     protected Node compute() {
         int length = right - left;
 
-        if (length <= minLen)
+        if (length <= minParallelSize)
             return reduce(seq, left, right, f);
 
-        ReduceRecursiveTask l = new ReduceRecursiveTask(minLen, seq, left, left + length / 2,  f);
-        ReduceRecursiveTask r = new ReduceRecursiveTask(minLen, seq, left + length / 2, right, f);
+        ReduceRecursiveTask l = new ReduceRecursiveTask(minParallelSize, seq, left, left + length / 2,  f);
+        ReduceRecursiveTask r = new ReduceRecursiveTask(minParallelSize, seq, left + length / 2, right, f);
 
         ForkJoinTask<Node> fl = l.fork();
         ForkJoinTask<Node> fr = r.fork();

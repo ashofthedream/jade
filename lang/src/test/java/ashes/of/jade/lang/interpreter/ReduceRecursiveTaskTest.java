@@ -24,7 +24,7 @@ public class ReduceRecursiveTaskTest {
     @Before
     public void setUp() throws Exception {
         pool = new ForkJoinPool(4);
-        seq = new SequenceNode(Location.EMPTY, 0, 100);
+        seq = new SequenceNode(Location.EMPTY, 0, 10000);
     }
 
     @After
@@ -42,7 +42,7 @@ public class ReduceRecursiveTaskTest {
 
         Node join = f.reduce(new IntNode(13), reduced.join());
 
-        assertEquals(5063, join.toInteger());
+        assertEquals(50005013, join.toInteger());
     }
 
     @Test
@@ -60,7 +60,7 @@ public class ReduceRecursiveTaskTest {
 
         Node join = f.reduce(new IntNode(13), reduced.join());
 
-        assertEquals(5063, join.toInteger());
+        assertEquals(50005013, join.toInteger());
         // main, FJP-1-worker-XXX, ...
         assertTrue(threads.size() > 2);
     }
@@ -77,12 +77,12 @@ public class ReduceRecursiveTaskTest {
         };
 
         ForkJoinTask<Node> reduced = pool
-                .submit(new ReduceRecursiveTask(1000, seq.seq, 0, seq.seq.length, f));
+                .submit(new ReduceRecursiveTask(100000, seq.seq, 0, seq.seq.length, f));
 
 
         Node join = f.reduce(new IntNode(13), reduced.join());
 
-        assertEquals(5063, join.toInteger());
+        assertEquals(50005013, join.toInteger());
         // main, FJP-1-worker-1
         assertEquals(2, threads.size());
     }
