@@ -270,6 +270,7 @@ public class ParserTest {
     }
 
 
+
     @Test
     public void parseShouldFailIfOutExprContainsMoreThanOneVariables() {
         try {
@@ -326,5 +327,19 @@ public class ParserTest {
         assertNode(NodeType.LAMBDA, rpn.removeLast());
 
         System.out.println(rpn);
+    }
+
+
+    @Test
+    public void parseShouldFail1() {
+        try {
+            List<Lexem> lexems = lexer.parse("out print");
+            Deque<Node> rpn = parser.parse(lexems);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(6, 1, 7), e.getLocation());
+        }
     }
 }

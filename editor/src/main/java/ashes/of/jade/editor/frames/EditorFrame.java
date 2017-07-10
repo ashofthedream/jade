@@ -156,7 +156,6 @@ public class EditorFrame extends JFrame {
             model.add("_time", new StringNode(String.format("%.3f", (System.currentTimeMillis() - start) / 1000.0 )));
             model.fireTableStructureChanged();
         } catch (ParseException ex) {
-
             Location location = ex.getLocation();
             String errorMessage = buildErrorMessage(sourceCode, ex);
 

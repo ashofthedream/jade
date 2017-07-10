@@ -1,6 +1,7 @@
 package ashes.of.jade.lang.lexer;
 
 import ashes.of.jade.lang.Location;
+import ashes.of.jade.lang.nodes.NodeType;
 
 
 public class Lexem {

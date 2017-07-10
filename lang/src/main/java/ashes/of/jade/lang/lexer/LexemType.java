@@ -2,29 +2,73 @@ package ashes.of.jade.lang.lexer;
 
 
 public enum LexemType {
-    NewLine,
-    Var,
 
-    Print,
-    Out,
+    /**
+     * Call map method
+     */
+    MAP,
 
-    Map, Reduce,
+    /**
+     * Call reduce method
+     */
+    REDUCE,
 
-    Comma,
-    Arrow,
+    /**
+     * Print string to output stream
+     */
+    PRINT,
 
-    Plus, Minus, Multiply, Divide, Remainder, Power,
+    /**
+     * Print integer, double or sequence to output stream
+     */
+    OUT,
 
-    Store,
-    Load,
 
-    IntegerNumber, DoubleNumber,
-    String,
+    /**
+     * var keyword
+     */
+    VAR,
 
-    CurlyOpen,
-    CurlyClose,
-    ParentOpen,
-    ParentClose,
+    /**
+     * Comma
+     */
+    COMMA,
 
-    EOF
+    /**
+     * -> keyword
+     */
+    ARROW,
+
+    /**
+     * Load a value onto stack from local variable
+     */
+    LOAD,
+
+    /**
+     * Store a value to a local variable
+     */
+    STORE,
+
+    /**
+     * Data types
+     */
+    INTEGER, DOUBLE, STRING,
+
+    /**
+     * Keywords
+     */
+    CURLY_OPEN,
+    CURLY_CLOSE,
+    PARENT_OPEN,
+    PARENT_CLOSE,
+
+    /**
+     * Operators
+     */
+    PLUS, MINUS, MULTIPLY, DIVIDE, REMAINDER, POWER,
+
+    /**
+     * New line and EOF
+     */
+    NL, EOF
 }

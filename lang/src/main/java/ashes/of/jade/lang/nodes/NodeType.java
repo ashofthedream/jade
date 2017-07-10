@@ -1,14 +1,14 @@
 package ashes.of.jade.lang.nodes;
 
+
 public enum NodeType {
 
     /**
      * Temporal nodes
      */
-    Comma,
-    CurlyOpen,
-    ParentOpen,
-
+    COMMA,
+    CURLY_OPEN,
+    PARENT_OPEN,
 
     /**
      * Integer number
@@ -55,8 +55,6 @@ public enum NodeType {
      */
     OUT,
 
-    NL, EOF,
-
 
     /**
      * Load a value onto stack from variable
@@ -97,5 +95,11 @@ public enum NodeType {
     /**
      * Raise first element from to the power of the second element from stack
      */
-    POWER
+    POWER,
+
+
+    /**
+     * New line and EOF
+     */
+    NL, EOF,
 }
