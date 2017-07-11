@@ -26,8 +26,15 @@ public class Editor {
 
         @Provides
         @Singleton
+        @Named("editor-pool")
+        public ForkJoinPool editorPool() {
+            return ForkJoinPool.commonPool();
+        }
+
+        @Provides
+        @Singleton
         @Named("interpreter-pool")
-        public ForkJoinPool pool() {
+        public ForkJoinPool interpreterPool() {
             return ForkJoinPool.commonPool();
         }
 

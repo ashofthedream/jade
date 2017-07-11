@@ -583,11 +583,70 @@ public class LexerTest {
 
 
     @Test
+    public void parseShouldFail1IfStmtStartsFromMap() {
+        try {
+            List<Lexem> lexems = lexer.parse("map({0, 1}, x -> x)");
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(0, 1, 1), e.getLocation());
+        }
+    }
+
+
+    @Test
+    public void parseShouldFail1IfStmtStartsFromReduce() {
+        try {
+            List<Lexem> lexems = lexer.parse("reduce({0, 1}, x -> x)");
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(0, 1, 1), e.getLocation());
+        }
+    }
+
+
+    @Test
+    public void parseShouldFail1IfPrintIsInMiddleOfStmt() {
+        try {
+            List<Lexem> lexems = lexer.parse("out print");
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(4, 1, 5), e.getLocation());
+        }
+    }
+
+    @Test
+    public void parseShouldFail1IfOutIsInMiddleOfStmt() {
+        try {
+            List<Lexem> lexems = lexer.parse("print 1 + out");
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(10, 1, 11), e.getLocation());
+        }
+    }
+
+    @Test
+    public void parseShouldFail1IfVarIsInMiddleOfStmt() {
+        try {
+            List<Lexem> lexems = lexer.parse("var a = var b + 7");
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(8, 1, 9), e.getLocation());
+        }
+    }
+
+    @Test
     public void testParseIdentifierWhichStartsFromMap() throws Exception {
-        String source = "var mapped = map({0, 1}, e -> e)\n";
-
-
-        List<Lexem> lexems = lexer.parse(source);
+        List<Lexem> lexems = lexer.parse("var mapped = map({0, 1}, e -> e)\n");
 
         Lexem assign = lexems.get(0);
         assertEquals("First should be Store{mapped}", LexemType.STORE, assign.getType());

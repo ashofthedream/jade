@@ -303,10 +303,6 @@ public class InterpreterTest {
         }
     }
 
-    @Test(expected = EvalException.class)
-    public void evalShouldThrowAnExceptionIfInputContainsStringFirstMapParameter() throws Exception {
-        interpreter.eval("map(\"this is a string\", x -> x)");
-    }
 
     @Test(expected = EvalException.class)
     public void evalShouldThrowAnExceptionIfInputContainsIntegerFirstMapParameter() throws Exception {
