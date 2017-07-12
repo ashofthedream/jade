@@ -1,6 +1,7 @@
 package ashes.of.jade.editor.frames;
 
 import ashes.of.jade.lang.interpreter.Interpreter;
+import ashes.of.jade.lang.interpreter.Settings;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -36,8 +37,8 @@ public class SettingsFrame extends JFrame {
     @Inject
     public SettingsFrame(Interpreter interpreter) {
         this.interpreter = interpreter;
-        this.mapParallelismSize = interpreter.getMapParallelismSize();
-        this.reduceParallelismSize = interpreter.getReduceParallelismSize();
+        this.mapParallelismSize = interpreter.getSettings().getMapParallelismSize();
+        this.reduceParallelismSize = interpreter.getSettings().getReduceParallelismSize();
 
         setTitle("Interpeter Settings");
 
@@ -103,8 +104,9 @@ public class SettingsFrame extends JFrame {
     private void saveAndHide() {
         log.info("Save mapParallelismSize={} reduceParallelismSize={}",
                 mapParallelismSize, reduceParallelismSize);
-        interpreter.setMapParallelismSize(mapParallelismSize);
-        interpreter.setReduceParallelismSize(reduceParallelismSize);
+        Settings settings = interpreter.getSettings();
+        settings.setMapParallelismSize(mapParallelismSize);
+        settings.setReduceParallelismSize(reduceParallelismSize);
 
         setVisible(false);
     }

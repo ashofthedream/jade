@@ -17,6 +17,11 @@ public class DoubleNode extends Node {
     }
 
     @Override
+    public long toInteger() {
+        return Math.round(value);
+    }
+
+    @Override
     public double toDouble() {
         return value;
     }

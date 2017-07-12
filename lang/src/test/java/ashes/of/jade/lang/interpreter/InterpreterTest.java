@@ -14,6 +14,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.concurrent.ForkJoinPool;
 
 import static org.junit.Assert.*;
 
@@ -26,7 +27,7 @@ public class InterpreterTest {
     
     @Before
     public void setUp() throws Exception {
-        interpreter = new Interpreter(new Lexer(), new Parser());
+        interpreter = new Interpreter(ForkJoinPool.commonPool(), new Settings(), new Lexer(), new Parser());
     }
 
     /*
@@ -92,8 +93,8 @@ public class InterpreterTest {
 
         Node a = scope.load("a");
 
-        assertTrue(a.isInteger());
-        assertEquals("5 + 2 ^ 4 / 8 * (10 - 5)", 15, a.toInteger());
+        assertTrue(a.isDouble());
+        assertEquals("5 + 2 ^ 4 / 8 * (10 - 5)", 15.0, a.toDouble(), 0.00001);
     }
 
 
@@ -108,13 +109,13 @@ public class InterpreterTest {
     }
 
     @Test
-    public void evalShouldReturnStateAfterEvaluateExprWithMinusInParenthesesAndDivide() throws Exception {
+    public void evalShouldReturnStateAfterEvaluateExprWithMinusInParenthesesAndDivideAndCastToDouble() throws Exception {
         Scope scope = interpreter.eval("var a = (5 - 2) / 3");
 
         Node a = scope.load("a");
 
-        assertTrue(a.isInteger());
-        assertEquals("(5 - 2) / 3", 1, a.toInteger());
+        assertTrue(a.isDouble());
+        assertEquals("(5 - 2) / 3", 1, a.toDouble(), 0.00001);
     }
 
 
@@ -145,8 +146,8 @@ public class InterpreterTest {
 
         Node a = scope.load("a");
 
-        assertTrue(a.isInteger());
-        assertEquals("2 ^ 4 / 8", 2, a.toInteger());
+        assertTrue(a.isDouble());
+        assertEquals("2 ^ 4 / 8", 2.0, a.toDouble(), 0.00001);
     }
 
 
@@ -268,7 +269,7 @@ public class InterpreterTest {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         PrintStream stream = new PrintStream(baos);
 
-        interpreter.setOut(stream);
+        interpreter.getSettings().setOut(stream);
         interpreter.eval("print 5 + 2");
 
         String out = baos.toString(Charset.defaultCharset().name());

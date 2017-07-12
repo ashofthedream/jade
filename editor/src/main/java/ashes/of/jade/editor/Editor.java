@@ -2,6 +2,7 @@ package ashes.of.jade.editor;
 
 import ashes.of.jade.editor.frames.EditorFrame;
 import ashes.of.jade.lang.interpreter.Interpreter;
+import ashes.of.jade.lang.interpreter.Settings;
 import ashes.of.jade.lang.lexer.Lexer;
 import ashes.of.jade.lang.parser.Parser;
 import com.google.inject.*;
@@ -41,8 +42,8 @@ public class Editor {
         @Provides
         @Singleton
         public Interpreter interpreter(@Named("interpreter-pool") ForkJoinPool pool) {
-            Interpreter interpreter = new Interpreter(new Lexer(), new Parser());
-            interpreter.setThreadPool(pool);
+            Settings settings = new Settings();
+            Interpreter interpreter = new Interpreter(pool, settings, new Lexer(), new Parser());
             return interpreter;
         }
     }

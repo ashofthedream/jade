@@ -185,7 +185,6 @@ public class Parser {
 
 
     private void parsePrintAndOut(Scope scope, Lexem lexem) {
-        checkIsStmtStart(scope, lexem.getLocation());
         scope.pushStack(createNodeFromLexem(lexem));
     }
 
@@ -287,14 +286,6 @@ public class Parser {
 
         scope.drainStackToOut();
         scope.pushOut(createNodeFromLexem(lexem));
-    }
-
-
-    private void checkIsStmtStart(Scope scope, Location location) {
-        Deque<Node> out = scope.out;
-        Deque<Node> stack = scope.stack;
-        if (false)
-            throw new ParseException(location, "Can't be part of expression");
     }
 
     private void checkIsNotStmtStart(Scope scope, Location location) {

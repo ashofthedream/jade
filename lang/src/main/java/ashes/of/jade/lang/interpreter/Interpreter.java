@@ -7,63 +7,34 @@ import ashes.of.jade.lang.parser.Parser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.PrintStream;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
+/**
+ * Jade Interpreter
+ */
 public class Interpreter {
     private static final Logger log = LogManager.getLogger(Interpreter.class);
 
 
-    private static final int DEFAULT_PARALLELISM_MIN_SIZE = 1024 * 1024;
-
-
+    private ForkJoinPool threadPool = ForkJoinPool.commonPool();
+    private final Settings settings;
     private final Lexer lexer;
     private final Parser parser;
 
-    // todo move to settings?
-    private PrintStream out = System.out;
-    private ForkJoinPool threadPool = ForkJoinPool.commonPool();
-    private int mapParallelismSize = DEFAULT_PARALLELISM_MIN_SIZE;
-    private int reduceParallelismSize = DEFAULT_PARALLELISM_MIN_SIZE;
 
-    public Interpreter(Lexer lexer, Parser parser) {
+    public Interpreter(ForkJoinPool pool, Settings settings, Lexer lexer, Parser parser) {
+        this.settings = settings;
+        this.threadPool = pool;
         this.lexer = lexer;
         this.parser = parser;
     }
 
-
-    public PrintStream getOut() {
-        return out;
-    }
-
-    public void setOut(PrintStream out) {
-        this.out = out;
-    }
-
-    public ForkJoinPool getThreadPool() {
-        return threadPool;
-    }
-
-    public void setThreadPool(ForkJoinPool threadPool) {
-        this.threadPool = threadPool;
-    }
-
-    public int getMapParallelismSize() {
-        return mapParallelismSize;
-    }
-
-    public void setMapParallelismSize(int mapParallelismSize) {
-        this.mapParallelismSize = mapParallelismSize;
-    }
-
-    public int getReduceParallelismSize() {
-        return reduceParallelismSize;
-    }
-
-    public void setReduceParallelismSize(int reduceParallelismSize) {
-        this.reduceParallelismSize = reduceParallelismSize;
+    public Settings getSettings() {
+        return settings;
     }
 
     public Scope eval(String text) {
@@ -166,7 +137,7 @@ public class Interpreter {
         log.debug("call map({}, {})", seq, lambda);
 
         long time = System.currentTimeMillis();
-        if (seq.size() < getMapParallelismSize()) {
+        if (seq.size() < settings.getMapParallelismSize()) {
             map(seq, lambda, 0, seq.size());
             log.trace("map.elapsed all: {}", System.currentTimeMillis() - time);
             return seq;
@@ -226,11 +197,11 @@ public class Interpreter {
         };
 
         ForkJoinTask<Node> task = threadPool
-                .submit(new ReduceRecursiveTask(getReduceParallelismSize(), seq.seq, 0, seq.seq.length, reduce));
+                .submit(new ReduceRecursiveTask(settings.getReduceParallelismSize(), seq.seq, 0, seq.seq.length, reduce));
 
         Node reduced = reduce.reduce(acc, task.join());
         log.trace("reduce.elapsed {} (getReduceParallelismSize = {})",
-                System.currentTimeMillis() - start, getReduceParallelismSize());
+                System.currentTimeMillis() - start, settings.getReduceParallelismSize());
         return reduced;
     }
 
@@ -275,7 +246,23 @@ public class Interpreter {
 
         Node pop = scope.pop(n -> n.isNumber() || n.isSeq(), "Expected Number or Sequence");
 
-        out.println(pop);
+        switch (pop.getType()) {
+            case INTEGER:
+                settings.getOut().println(pop.toInteger());
+                break;
+
+            case DOUBLE:
+                settings.getOut().println(pop.toDouble());
+                break;
+
+            case SEQUENCE:
+                String seq = Stream.of(pop.toSeq().getSeq())
+                        .map(Node::toString)
+                        .collect(Collectors.joining(", ", "[", "]"));
+
+                settings.getOut().println(seq);
+                break;
+        }
     }
 
     /**
@@ -289,7 +276,7 @@ public class Interpreter {
         Node pop = scope.pop(Node::isString, "Expected String");
 
         log.trace("print {}", pop);
-        out.print(pop.toString());
+        settings.getOut().print(pop.toString());
     }
 
 
@@ -337,9 +324,7 @@ public class Interpreter {
     }
 
     private Node divide(Node a, Node b) {
-        return a.isDouble() || b.isDouble() ?
-                new DoubleNode(a.getLocation(),a.toDouble() / b.toDouble()) :
-                new IntNode(a.getLocation(),a.toInteger() / b.toInteger());
+        return new DoubleNode(a.getLocation(),a.toDouble() / b.toDouble());
     }
 
     private Node power(Node a, Node b) {

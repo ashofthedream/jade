@@ -11,6 +11,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Singleton;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
@@ -19,10 +20,15 @@ import javax.swing.text.DefaultHighlighter;
 import java.awt.*;
 import java.awt.event.ComponentListener;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
 import java.util.concurrent.ForkJoinPool;
-
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.concurrent.ForkJoinPool;
 
 /**
  * Main frame for editor
@@ -40,18 +46,22 @@ public class EditorFrame extends JFrame {
      */
     private final JMenuBar menuBar = new JMenuBar();
     private final JMenu fileMenu = new JMenu("File");
+    private final JMenuItem openMenuItem = new JMenuItem("Open...");
+    private final JMenuItem exitMenuItem = new JMenuItem("Exit");
+
+
     private final JMenu settingsMenu = new JMenu("Settings");
     private final JMenuItem interpreterSettingsMenuItem = new JMenuItem("Interpreter Settings...");
 
     /**
      * Main text area
      */
-    private final JTextArea text = new JTextArea(20, 40);
+    private final JTextArea sourceCodeTextArea = new JTextArea(20, 40);
 
     /**
      * Debug info text area (read only)
      */
-    private final JTextArea info = new JTextArea(5, 40);
+    private final JTextArea debugTextArea = new JTextArea(5, 40);
 
 
 
@@ -62,35 +72,45 @@ public class EditorFrame extends JFrame {
      */
     private final JTable variablesTable = new JTable(model);
 
+    /**
+     * Run button
+     */
+    private final JButton runButton = new JButton("run");
+
+    private final RunnerState runnerState = new RunnerState();
+
 
     {
         String code =
-                "var seq = {0, 10000}\n" +
-                "var sequence = map(seq, i -> i + i)\n" +
-                "var pi = 1 * reduce(sequence, 1, acc y -> acc + y)\n" +
+                "var n = 500\n" +
+                "var sequence = map({0, n}, i -> (-1)^i / (2 * i + 1))\n" +
+                "var pi = 4 * reduce(sequence, 0, x y -> x + y)\n" +
                 "print \"pi = \"\n" +
-                "out pi\n" ;
+                "out pi" ;
 
-        text.setText(code);
+        sourceCodeTextArea.setText(code);
     }
 
-
     @Inject
-    public EditorFrame(ForkJoinPool pool, Interpreter interpreter, SettingsFrame settings) {
+    public EditorFrame(@Named("editor-pool") ForkJoinPool pool, Interpreter interpreter, SettingsFrame settings) {
         this.pool = pool;
         this.interpreter = interpreter;
         this.settings = settings;
 
         setTitle("Jade Editor");
-
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
         Container container = getContentPane();
 
 
-        interpreterSettingsMenuItem.addActionListener(e -> showSettingsFrame());
+        exitMenuItem.addActionListener(e -> exitEditorAction());
+        openMenuItem.addActionListener(e -> openFileAction());
+        fileMenu.add(openMenuItem);
+        fileMenu.add(exitMenuItem);
 
+
+        interpreterSettingsMenuItem.addActionListener(e -> showSettingsFrameAction());
         settingsMenu.add(interpreterSettingsMenuItem);
 
         menuBar.add(fileMenu);
@@ -99,46 +119,83 @@ public class EditorFrame extends JFrame {
 
         Font font = new Font("Monospaced", Font.PLAIN, 13);
         // main text area
-        text.setFont(font);
-
-
-        text.addKeyListener(Listeners.onKeyReleased(e -> {
-            if (e.getKeyChar() == '\n')
-                runInterpreter();
-        }));
+        sourceCodeTextArea.setFont(font);
+        sourceCodeTextArea.addKeyListener(Listeners.onKeyReleased(e -> runnerState.updateTime()));
 
         // bottom text area
-        info.setBorder(new LineBorder(Color.black));
-        info.setSize(100, 0);
-        info.setEnabled(false);
-        info.setFont(font);
-
+        debugTextArea.setBorder(new LineBorder(Color.black));
+        debugTextArea.setSize(100, 0);
+        debugTextArea.setEnabled(false);
+        debugTextArea.setFont(font);
 
         variablesTable.setSize(120, 300);
+
+        runButton.addActionListener(e -> evalAction());
+
         container.add(variablesTable, BorderLayout.LINE_END);
-        container.add(info, BorderLayout.PAGE_END);
-        container.add(text, BorderLayout.CENTER);
-
-        JButton button = new JButton("run");
-        button.addActionListener(e -> runInterpreter());
-
-        container.add(button, BorderLayout.PAGE_START);
-
+        container.add(debugTextArea, BorderLayout.PAGE_END);
+        container.add(sourceCodeTextArea, BorderLayout.CENTER);
+        container.add(runButton, BorderLayout.PAGE_START);
 
         setJMenuBar(menuBar);
         setSize(640, 480);
         setVisible(true);
+
+
+
+        Timer timer = new Timer(2000, e -> {
+            long time = System.currentTimeMillis();
+            if (runnerState.canRunInBackground(time)) {
+                log.trace("Nothing changed, await");
+                return;
+            }
+
+            runnerState.setLastEvaluatedTime(time);
+            evalAction();
+        });
+        timer.start();
     }
 
 
+
+
     /*
-     * Event listeners
+     * Action handlers
      */
+
+    private void openFileAction() {
+        log.debug("openFileAction");
+        JFileChooser fileChooser = new JFileChooser();
+        int state = fileChooser.showOpenDialog(this);
+
+        if (state != JFileChooser.APPROVE_OPTION) {
+            log.info("showOpenDialog returns {}", state);
+            return;
+        }
+
+
+        try {
+            File file = fileChooser.getSelectedFile();
+            Path path = Paths.get(file.getAbsolutePath());
+
+            String read = new String(Files.readAllBytes(path));
+            sourceCodeTextArea.setText(read);
+            runnerState.updateTime();
+        } catch (Exception e) {
+            log.error("Can't read file");
+        }
+    }
+
+    private void exitEditorAction() {
+        log.debug("exitEditorAction");
+        System.exit(0);
+    }
 
     /**
      * Show settings frame
      */
-    private void showSettingsFrame() {
+    private void showSettingsFrameAction() {
+        log.debug("showSettingsFrameAction");
         settings.setVisible(true);
     }
 
@@ -146,34 +203,34 @@ public class EditorFrame extends JFrame {
     /**
      * Run interpreter
      */
-    private void runInterpreter() {
-        log.debug("runInterpreter invoked");
-        text.getHighlighter().removeAllHighlights();
+    private void evalAction() {
+        log.debug("evalAction invoked");
+        sourceCodeTextArea.getHighlighter().removeAllHighlights();
 
-
-        String sourceCode = text.getText();
-
+        String sourceCode = sourceCodeTextArea.getText();
         pool.submit(() -> eval(sourceCode));
     }
 
+
     private void eval(String sourceCode) {
         try {
+            runnerState.setRunNow(true);
             long start = System.currentTimeMillis();
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             PrintStream stream = new PrintStream(baos);
-            interpreter.setOut(stream);
+            interpreter.getSettings().setOut(stream);
 
             Scope state = interpreter.eval(sourceCode);
             String output = baos.toString(Charset.defaultCharset().name());
-
-            SwingUtilities.invokeLater(() -> info.setText(output));
 
             SwingUtilities.invokeLater(() -> {
                 model.clear();
                 state.getVars().forEach(model::add);
                 model.add("_time", new StringNode(String.format("%.3f", (System.currentTimeMillis() - start) / 1000.0 )));
                 model.fireTableStructureChanged();
+
+                debugTextArea.setText(output);
             });
 
         } catch (ParseException ex) {
@@ -183,28 +240,23 @@ public class EditorFrame extends JFrame {
             SwingUtilities.invokeLater(() -> {
                 DefaultHighlighter.DefaultHighlightPainter error = new DefaultHighlighter.DefaultHighlightPainter(Color.red);
                 try {
-                    text.getHighlighter().addHighlight(location.getIndex(), location.getIndex() + 1, error);
+                    sourceCodeTextArea.getHighlighter().addHighlight(location.getIndex(), location.getIndex() + 1, error);
                 } catch (BadLocationException e) {
                     log.error("Can't highlight", ex);
                 }
 
-                info.setText(errorMessage);
+                debugTextArea.setText(errorMessage);
             });
 
         } catch (Exception ex) {
-            SwingUtilities.invokeLater(() -> info.setText("Unknown error: " + ex.getMessage()));
+            SwingUtilities.invokeLater(() -> debugTextArea.setText("Unknown error: " + ex.getMessage()));
             log.error("Very bad thing happened", ex);
         }
-    }
-
-
-    public static class UpdateTextEvent extends AWTEvent {
-
-        public UpdateTextEvent(Object source, int id) {
-            super(source, id);
+        finally {
+            runButton.setEnabled(true);
+            runnerState.setRunNow(false);
         }
     }
-
 
 
     private String buildErrorMessage(String sourceCode, ParseException ex) {

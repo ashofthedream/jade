@@ -14,7 +14,7 @@
 
 
     <Loggers>
-        <Root level="trace">
+        <Root level="warn">
             <AppenderRef ref="Async"/>
         </Root>
     </Loggers>

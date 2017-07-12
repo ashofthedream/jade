@@ -20,6 +20,9 @@ public class SequenceNode extends Node {
         return this;
     }
 
+    public Node[] getSeq() {
+        return seq;
+    }
 
     public int size() {
         return seq.length;
