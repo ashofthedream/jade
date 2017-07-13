@@ -35,6 +35,15 @@ public class Lexem {
         return this.type == type;
     }
 
+    public boolean isAnyOf(LexemType... types) {
+        for (LexemType type : types) {
+            if (is(type))
+                return true;
+        }
+
+        return false;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

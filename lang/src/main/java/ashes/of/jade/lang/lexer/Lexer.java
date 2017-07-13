@@ -42,8 +42,9 @@ public class Lexer {
         List<Lexem> lexems = new ArrayList<>();
 
         while (!it.isEOF()) {
+            Location loc = it.getLocation();
             if (it.isNewLine()) {
-                add(lexems, LexemType.NL, it.getLocation());
+                add(lexems, LexemType.NL, loc);
                 it.step();
                 it.newLine();
                 continue;
@@ -72,20 +73,10 @@ public class Lexer {
                 continue;
             }
 
-
-            if (it.getChar() == '>') {
-                log.debug("Found symbol: {}, try parse as a Arrow", it.getChar());
-
-                Lexem minus = pop(lexems);
-                if (minus.is(LexemType.MINUS)) {
-                    add(lexems, LexemType.ARROW, minus.getLocation());
-                    it.step();
-                    continue;
-                }
-
-                throw new ParseException(minus.getLocation(), "Expected -> but first char is ");
+            if (it.isArrow()) {
+                parseArrow(it, lexems);
+                continue;
             }
-
 
             if (it.isOperator()) {
                 parseOperator(it, lexems);
@@ -93,64 +84,37 @@ public class Lexer {
             }
 
             if (it.isParentOpen()) {
-                checkIsNotNewLine(it, lexems, "Symbol ( isn't allowed as first token");
-                add(lexems, LexemType.PARENT_OPEN, it.getLocation());
-                it.step();
+                parseParentOpen(it, lexems, loc);
                 continue;
             }
 
             if (it.isParentClose()) {
-                checkIsNotNewLine(it, lexems, "Symbol ) isn't allowed as first token");
-                add(lexems, LexemType.PARENT_CLOSE, it.getLocation());
-                it.step();
+                parseParentClose(it, lexems, loc);
                 continue;
             }
 
             if (it.isCurlyOpen()) {
-                checkIsNotNewLine(it, lexems, "Symbol { isn't allowed as first token");
-                add(lexems, LexemType.CURLY_OPEN, it.getLocation());
-                it.step();
+                parseCurlyOpen(it, lexems, loc);
                 continue;
             }
 
             if (it.isCurlyClose()) {
-                checkIsNotNewLine(it, lexems, "Symbol } isn't allowed as first token");
-                add(lexems, LexemType.CURLY_CLOSE, it.getLocation());
-                it.step();
+                parseCurlyClose(it, lexems, loc);
                 continue;
             }
 
             if (it.isComma()) {
-                checkIsNotNewLine(it, lexems, "Comma isn't allowed as first token");
-
-                Location loc = it.getLocation();
-                Lexem lexem = new Lexem(LexemType.COMMA, loc);
-                add(lexems, lexem);
-                it.step();
+                parseComma(it, lexems, loc);
                 continue;
             }
 
 
-            if (it.isAssign()) {
-                log.debug("assign, try reduce [var, load{id}, Assign] to one Store{id}");
-                checkIsNotNewLine(it, lexems, "Assign isn't allowed as first token");
-
-                Lexem id = pop(lexems);
-                if (!id.is(LexemType.LOAD))
-                    throw new ParseException(it.getLocation(), "Load expected");
-
-                Lexem var = pop(lexems);
-                if (!var.is(LexemType.VAR))
-                    throw new ParseException(it.getLocation(), "Var expected");
-
-                Lexem lexem = new Lexem(LexemType.STORE, var.getLocation(), id.getContent());
-                lexems.add(lexem);
-                log.info("add {},   reduce [{}, {}]", lexem, var, id);
-                it.step();
+            if (it.isEqual()) {
+                parseEqual(it, lexems, loc);
                 continue;
             }
 
-            throw new ParseException(it.getLocation(), "Unexpected symbol '%s'", it.getChar());
+            throw new ParseException(loc, "Unexpected symbol '%s'", it.getChar());
         }
 
         add(lexems, LexemType.EOF, it.getLocation());
@@ -158,6 +122,51 @@ public class Lexer {
         return lexems;
     }
 
+
+
+    private void parseLexemAndStep(SourceCode it, List<Lexem> lexems, LexemType type, Location loc) {
+        checkIsNotNewLine(loc, lexems, "Symbol isn't allowed as first token");
+        add(lexems, type, loc);
+        it.step();
+    }
+
+
+
+
+
+
+    private void parseCurlyClose(SourceCode it, List<Lexem> lexems, Location loc) {
+        parseLexemAndStep(it, lexems, LexemType.CURLY_CLOSE, loc);
+    }
+
+    private void parseCurlyOpen(SourceCode it, List<Lexem> lexems, Location loc) {
+        checkIsNotMiddleOfExpr(loc, "", peek(lexems), "Sequence isn't allowed here");
+
+        checkIsNotNewLine(loc, lexems, "Sequence isn't allowed as first token");
+        add(lexems, LexemType.CURLY_OPEN, loc);
+        it.step();
+    }
+
+    private void parseParentOpen(SourceCode it, List<Lexem> lexems, Location loc) {
+        parseLexemAndStep(it, lexems, LexemType.PARENT_OPEN, loc);
+    }
+
+    private void parseParentClose(SourceCode it, List<Lexem> lexems, Location loc) {
+        parseLexemAndStep(it, lexems, LexemType.PARENT_CLOSE, loc);
+//
+//        checkIsNotNewLine(loc, lexems, "Symbol ) isn't allowed as first token");
+//        add(lexems, LexemType.PARENT_CLOSE, it.getLocation());
+//        it.step();
+    }
+
+    private void parseArrow(SourceCode it, List<Lexem> lexems) {
+        log.debug("Found symbol: {}, try parse as a Arrow", it.getChar());
+        Lexem minus = pop(lexems);
+        if (!minus.is(LexemType.MINUS))
+            throw new ParseException(minus.getLocation(), "Expected -> but first char is ");
+
+        parseLexemAndStep(it, lexems, LexemType.ARROW, minus.getLocation());
+    }
 
     private void parseOperator(SourceCode it, List<Lexem> lexems) {
         checkIsNotNewLine(it, lexems, "Operator isn't allowed as first token");
@@ -215,20 +224,13 @@ public class Lexer {
         Location loc = it.getLocation();
         StringBuilder b = new StringBuilder();
         Lexem back1 = peek(lexems);
-        if (back1.is(LexemType.MINUS) || back1.is(LexemType.PLUS)) {
+
+        if (back1.isAnyOf(LexemType.MINUS, LexemType.PLUS)) {
             log.trace("previous lexem is +/-, check that it isn't expr");
             Lexem back2 = lexems.get(lexems.size() - 2);
-            if (back2.is(LexemType.STORE) ||
-                back2.is(LexemType.ARROW) ||
-                back2.is(LexemType.PARENT_OPEN) ||
-                back2.is(LexemType.CURLY_OPEN) ||
-                back2.is(LexemType.COMMA) ||
-                back2.is(LexemType.OUT) ||
-                back2.is(LexemType.PLUS) ||
-                back2.is(LexemType.MINUS) ||
-                back2.is(LexemType.MULTIPLY) ||
-                back2.is(LexemType.DIVIDE) ||
-                back2.is(LexemType.POWER)) {
+            if (back2.isAnyOf(LexemType.EQUAL, LexemType.ARROW, LexemType.PARENT_OPEN, LexemType.CURLY_OPEN,
+                              LexemType.COMMA, LexemType.OUT,   LexemType.PLUS,        LexemType.MINUS,
+                              LexemType.MULTIPLY, LexemType.DIVIDE, LexemType.POWER)) {
                 loc = back1.getLocation();
 
                 if (back1.is(LexemType.PLUS))
@@ -248,6 +250,8 @@ public class Lexer {
         }
 
         String token = b.toString();
+        checkIsNotMiddleOfExpr(loc, token, back1, "Number isn't allowed here");
+
         if (doublePattern.matcher(token).matches()) {
             add(lexems, LexemType.DOUBLE, loc, token);
             return;
@@ -276,41 +280,42 @@ public class Lexer {
         switch (token) {
             case "print":
                 checkIsNewLine(loc, lexems, "Print allowed only as statement start");
-                add(lexems, LexemType.PRINT, loc);
+                add(lexems, LexemType.PRINT, loc, "print");
                 break;
 
             case "out":
                 checkIsNewLine(loc, lexems, "Out allowed only as statement start");
-                add(lexems, LexemType.OUT, loc);
+                add(lexems, LexemType.OUT, loc, "out");
                 break;
 
             case "map":
                 checkIsNotNewLine(loc, lexems, "Map isn't allowed as first token");
-                add(lexems, LexemType.MAP, loc);
+                add(lexems, LexemType.MAP, loc, "map");
                 break;
 
             case "reduce":
                 checkIsNotNewLine(loc, lexems, "Reduce isn't allowed as first token");
-                add(lexems, LexemType.REDUCE, loc);
+                add(lexems, LexemType.REDUCE, loc, "reduce");
                 break;
 
             case "var":
                 checkIsNewLine(loc, lexems, "Var allowed only as statement start");
-                add(lexems, LexemType.VAR, loc);
+                add(lexems, LexemType.VAR, loc, "var");
                 break;
 
             default:
                 checkIsNotNewLine(loc, lexems, "Identifier isn't allowed as first token");
-                add(lexems, LexemType.LOAD, loc, token);
+                checkIsNotMiddleOfExpr(loc, token, peek(lexems), "Identifier isn't allowed here");
+
+                add(lexems, LexemType.IDENTIFIER, loc, token);
         }
     }
 
 
     private void parseString(SourceCode it, List<Lexem> lexems) {
         log.debug("Found letter: \", try parse as a String", it.getChar());
-        checkIsNotNewLine(it, lexems, "String isn't allowed as first token");
-
         Location loc = it.getLocation();
+
         it.step(1);
         boolean escape = false;
         StringBuilder b = new StringBuilder();
@@ -320,12 +325,24 @@ public class Lexer {
                 b.append(it.getChar());
             it.step(1);
         }
+        String token = b.toString();
 
         if (it.isEOF() || !it.isDoubleQuote())
-            throw new ParseException(loc, "Unexpected EOF: A string without close double quote");
+            throw new ParseException(token, loc, "Unexpected EOF: A string without close double quote");
+
+        checkIsNotNewLine(loc, lexems, "String isn't allowed as first token");
+        checkIsNotMiddleOfExpr(loc, token, peek(lexems), "Identifier isn't allowed here");
 
         it.step(1);
-        add(lexems, new Lexem(LexemType.STRING, loc, b.toString()));
+        add(lexems, new Lexem(LexemType.STRING, loc, token));
+    }
+
+    private void parseComma(SourceCode it, List<Lexem> lexems, Location loc) {
+        parseLexemAndStep(it, lexems, LexemType.COMMA, loc);
+    }
+
+    private void parseEqual(SourceCode it, List<Lexem> lexems, Location loc) {
+        parseLexemAndStep(it, lexems, LexemType.EQUAL, loc);
     }
 
 
@@ -350,6 +367,18 @@ public class Lexer {
         add(lexems, new Lexem(type, location, content));
     }
 
+
+
+    private void checkIsNotMiddleOfExpr(Location loc, String token, Lexem peek, String message) {
+        if (isMiddleOfExpr(peek))
+            throw new ParseException(token, loc, message);
+    }
+
+    private boolean isMiddleOfExpr(Lexem lexem) {
+        return lexem.isAnyOf(
+                LexemType.INTEGER, LexemType.DOUBLE, LexemType.STRING,
+                LexemType.CURLY_CLOSE, LexemType.PARENT_CLOSE, LexemType.MAP, LexemType.REDUCE);
+    }
 
     private void checkIsNewLine(Location location, List<Lexem> lexems, String message) {
         if (!isNewLine(lexems))

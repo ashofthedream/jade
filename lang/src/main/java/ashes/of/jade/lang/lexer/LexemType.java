@@ -40,14 +40,9 @@ public enum LexemType {
     ARROW,
 
     /**
-     * Load a value onto stack from local variable
+     * Identifier keyword
      */
-    LOAD,
-
-    /**
-     * Store a value to a local variable
-     */
-    STORE,
+    IDENTIFIER,
 
     /**
      * Data types
@@ -61,6 +56,11 @@ public enum LexemType {
     CURLY_CLOSE,
     PARENT_OPEN,
     PARENT_CLOSE,
+
+    /**
+     * = keyword
+     */
+    EQUAL,
 
     /**
      * Operators

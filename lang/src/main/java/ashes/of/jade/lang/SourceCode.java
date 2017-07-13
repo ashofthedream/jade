@@ -118,7 +118,7 @@ public class SourceCode {
         return getChar() == '^';
     }
 
-    public boolean isAssign() {
+    public boolean isEqual() {
         return getChar() == '=';
     }
 
@@ -144,6 +144,10 @@ public class SourceCode {
 
     public boolean isCurlyClose() {
         return getChar() == '}';
+    }
+
+    public boolean isArrow() {
+        return getChar()  == '>';
     }
 
     public String getSource() {

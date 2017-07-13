@@ -97,6 +97,9 @@ public enum NodeType {
      */
     POWER,
 
+    EQUAL,
+
+    VAR,
 
     /**
      * New line and EOF

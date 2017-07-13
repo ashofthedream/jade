@@ -240,7 +240,7 @@ public class EditorFrame extends JFrame {
             SwingUtilities.invokeLater(() -> {
                 DefaultHighlighter.DefaultHighlightPainter error = new DefaultHighlighter.DefaultHighlightPainter(Color.red);
                 try {
-                    sourceCodeTextArea.getHighlighter().addHighlight(location.getIndex(), location.getIndex() + 1, error);
+                    sourceCodeTextArea.getHighlighter().addHighlight(location.getIndex(), location.getIndex() + Math.min(1, ex.getContent().length()), error);
                 } catch (BadLocationException e) {
                     log.error("Can't highlight", ex);
                 }

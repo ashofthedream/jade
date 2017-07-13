@@ -40,7 +40,7 @@ public class RunnerState {
     }
 
     public boolean canRunInBackground(long currentTime) {
-        return !runNow &&  currentTime - lastUpdateTime > BACKGROUND_EVAL_TIMEOUT &&
+        return !runNow && currentTime - lastUpdateTime > BACKGROUND_EVAL_TIMEOUT &&
                 lastUpdateTime != lastEvaluatedTime;
     }
 }

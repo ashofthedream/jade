@@ -13,10 +13,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.function.Predicate;
 
-import static ashes.of.jade.lang.nodes.NodeUtil.createNodeFromLexem;
-import static ashes.of.jade.lang.nodes.NodeUtil.isFunction;
-import static ashes.of.jade.lang.nodes.NodeUtil.isHighPrecedence;
-import static ashes.of.jade.lang.nodes.NodeUtil.isOperator;
+import static ashes.of.jade.lang.nodes.NodeUtil.*;
 
 
 public class Parser {
@@ -46,9 +43,15 @@ public class Parser {
             stack.push(node);
         }
 
+        public Node peekStack() {
+            Node node = stack.peek();
+            log.trace("stack.peek {}", node);
+            return node;
+        }
+
         public Node popStack() {
             Node node = stack.pop();
-            log.trace("stack.pop {}");
+            log.trace("stack.pop {}", node);
             return node;
         }
 
@@ -62,15 +65,22 @@ public class Parser {
             out.push(node);
         }
 
+        public Node peekOut() {
+            Node node = out.peek();
+            log.trace("out.peek {}", node);
+            return node;
+        }
+
         public Node popOut() {
             Node node = out.pop();
-            log.trace("out.pop {}");
+            log.trace("out.pop {}", node);
             return node;
         }
 
         public boolean isEmptyOut() {
             return out.isEmpty();
         }
+
     }
 
 
@@ -90,6 +100,7 @@ public class Parser {
      * out pi
      */
     public Deque<Node> parse(List<Lexem> lexems) {
+        log.info("parse lexems: {}", lexems);
         scopes.push(new Scope());
         for (int i = 0; i < lexems.size(); i++) {
             Lexem lexem = lexems.get(i);
@@ -104,12 +115,19 @@ public class Parser {
                 case INTEGER:
                 case DOUBLE:
                 case STRING:
-                case LOAD:
+                    parseVal(current, lexem);
+                    break;
+
+                case IDENTIFIER:
+                    parseIdentifier(current, lexem);
+                    break;
+
+                case VAR:
                     parseVar(current, lexem);
                     break;
 
-                case STORE:
-                    parseStore(current, lexem);
+                case EQUAL:
+                    parseEqual(current, lexem);
                     break;
 
                 case PLUS:
@@ -161,21 +179,37 @@ public class Parser {
         log.trace("End of parse. stack -> push");
         scope.drainStackToOut();
 
-        log.trace("out   <-- {}", scope.out);
+        log.info("out   <-- {}", scope.out);
         return scope.out;
     }
 
-
-    private void parseVar(Scope scope, Lexem lexem) {
-        checkIsNotStmtStart(scope, lexem.getLocation());
+    private void parseVal(Scope scope, Lexem lexem) {
         scope.pushOut(createNodeFromLexem(lexem));
     }
 
 
-    private void parseStore(Scope scope, Lexem lexem) {
+    private void parseVar(Scope scope, Lexem lexem) {
         scope.pushStack(createNodeFromLexem(lexem));
     }
 
+    private void parseIdentifier(Scope scope, Lexem lexem) {
+        checkIsNotStmtStart(scope, lexem.getLocation());
+
+        if (!scope.isEmptyStack() && scope.peekStack().is(NodeType.VAR)) {
+            scope.popStack();
+            scope.pushStack(createNode(NodeType.STORE, lexem.getLocation(), lexem.getContent()));
+            return;
+        }
+
+        scope.pushOut(createNode(NodeType.LOAD, lexem.getLocation(), lexem.getContent()));
+    }
+
+
+    private void parseEqual(Scope scope, Lexem lexem) {
+        Node peek = scope.peekStack();
+        if (!peek.is(NodeType.STORE))
+            throw new ParseException(lexem.getLocation(), "Expected var with identifier");
+    }
 
     private void parseOperator(Scope scope, Lexem lexem) {
         Node op = createNodeFromLexem(lexem);
@@ -289,11 +323,11 @@ public class Parser {
     }
 
     private void checkIsNotStmtStart(Scope scope, Location location) {
-        Deque<Node> out = scope.out;
-        Deque<Node> stack = scope.stack;
-
-        if (!out.isEmpty() && checkOut(out.peek()) && !stack.isEmpty() && checkStack(stack.peek()))
-            throw new ParseException(location, "Statement expected");
+//        Deque<Node> out = scope.out;
+//        Deque<Node> stack = scope.stack;
+//
+//        if (!out.isEmpty() && checkOut(out.peek()) && !stack.isEmpty() && checkStack(stack.peek()))
+//            throw new ParseException(location, "Statement expected");
     }
 
     private boolean checkStack(Node node) {
