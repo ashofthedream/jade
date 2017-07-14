@@ -5,6 +5,9 @@ import ashes.of.jade.editor.VariablesTableModel;
 import ashes.of.jade.lang.Location;
 import ashes.of.jade.lang.interpreter.Interpreter;
 import ashes.of.jade.lang.interpreter.Scope;
+import ashes.of.jade.lang.lexer.Lexem;
+import ashes.of.jade.lang.lexer.LexemType;
+import ashes.of.jade.lang.lexer.Lexer;
 import ashes.of.jade.lang.nodes.StringNode;
 import ashes.of.jade.lang.parser.ParseException;
 import org.apache.logging.log4j.LogManager;
@@ -14,21 +17,23 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 import javax.swing.*;
+import javax.swing.Timer;
 import javax.swing.border.LineBorder;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultHighlighter;
+import javax.swing.text.Highlighter;
 import java.awt.*;
-import java.awt.event.ComponentListener;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.ForkJoinPool;
 
 /**
  * Main frame for editor
@@ -80,6 +85,14 @@ public class EditorFrame extends JFrame {
     private final RunnerState runnerState = new RunnerState();
 
 
+    private final Map<LexemType, DefaultHighlighter.DefaultHighlightPainter> highlighters = new HashMap<>();
+
+    private final DefaultHighlighter.DefaultHighlightPainter valPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.GREEN);
+    private final DefaultHighlighter.DefaultHighlightPainter varPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.CYAN);
+    private final DefaultHighlighter.DefaultHighlightPainter functionPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.BLUE);
+    private final DefaultHighlighter.DefaultHighlightPainter errorPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.RED);
+
+
     {
         String code =
                 "var n = 500\n" +
@@ -89,6 +102,18 @@ public class EditorFrame extends JFrame {
                 "out pi" ;
 
         sourceCodeTextArea.setText(code);
+
+
+        highlighters.put(LexemType.STRING, valPainter);
+        highlighters.put(LexemType.INTEGER, valPainter);
+        highlighters.put(LexemType.DOUBLE, valPainter);
+
+        highlighters.put(LexemType.VAR, varPainter);
+
+        highlighters.put(LexemType.MAP, functionPainter);
+        highlighters.put(LexemType.REDUCE, functionPainter);
+        highlighters.put(LexemType.OUT, functionPainter);
+        highlighters.put(LexemType.PRINT, functionPainter);
     }
 
     @Inject
@@ -120,7 +145,7 @@ public class EditorFrame extends JFrame {
         Font font = new Font("Monospaced", Font.PLAIN, 13);
         // main text area
         sourceCodeTextArea.setFont(font);
-        sourceCodeTextArea.addKeyListener(Listeners.onKeyReleased(e -> runnerState.updateTime()));
+        sourceCodeTextArea.addKeyListener(Listeners.onKeyReleased(e -> textAreaKeyReleasedAction()));
 
         // bottom text area
         debugTextArea.setBorder(new LineBorder(Color.black));
@@ -142,26 +167,29 @@ public class EditorFrame extends JFrame {
         setVisible(true);
 
 
-
-        Timer timer = new Timer(2000, e -> {
-            long time = System.currentTimeMillis();
-            if (runnerState.canRunInBackground(time)) {
-                log.trace("Nothing changed, await");
-                return;
-            }
-
-            runnerState.setLastEvaluatedTime(time);
-            evalAction();
-        });
+        Timer timer = new Timer(500, e -> backgroundRunnerTimerAction());
         timer.start();
     }
-
 
 
 
     /*
      * Action handlers
      */
+
+    private void textAreaKeyReleasedAction() {
+        runnerState.updateTime();
+    }
+
+    private void backgroundRunnerTimerAction() {
+        if (!runnerState.canRunInBackground()) {
+            log.trace("Already running or nothing changed, await");
+            return;
+        }
+
+        runnerState.updateLastEvaluatedTime();
+        evalAction();
+    }
 
     private void openFileAction() {
         log.debug("openFileAction");
@@ -213,6 +241,8 @@ public class EditorFrame extends JFrame {
 
 
     private void eval(String sourceCode) {
+
+
         try {
             runnerState.setRunNow(true);
             long start = System.currentTimeMillis();
@@ -220,6 +250,22 @@ public class EditorFrame extends JFrame {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             PrintStream stream = new PrintStream(baos);
             interpreter.getSettings().setOut(stream);
+
+            Lexer lexer = new Lexer();
+            List<Lexem> lexems = lexer.parse(sourceCode);
+            lexems.forEach(lexem -> {
+                Highlighter highlighter = sourceCodeTextArea.getHighlighter();
+                Location location = lexem.getLocation();
+                try {
+                    DefaultHighlighter.DefaultHighlightPainter painter = highlighters.get(lexem.getType());
+                    if (painter == null)
+                        return;
+
+                    highlighter.addHighlight(location.getIndex(), location.getIndex() + Math.max(1, lexem.getContent().length()), painter);
+                } catch (BadLocationException ex) {
+                    log.error("Can't highlight", ex);
+                }
+            });
 
             Scope state = interpreter.eval(sourceCode);
             String output = baos.toString(Charset.defaultCharset().name());
@@ -234,13 +280,15 @@ public class EditorFrame extends JFrame {
             });
 
         } catch (ParseException ex) {
+            log.warn("Can't parse", ex);
             Location location = ex.getLocation();
             String errorMessage = buildErrorMessage(sourceCode, ex);
 
             SwingUtilities.invokeLater(() -> {
-                DefaultHighlighter.DefaultHighlightPainter error = new DefaultHighlighter.DefaultHighlightPainter(Color.red);
+                Highlighter highlighter = sourceCodeTextArea.getHighlighter();
+
                 try {
-                    sourceCodeTextArea.getHighlighter().addHighlight(location.getIndex(), location.getIndex() + Math.min(1, ex.getContent().length()), error);
+                    highlighter.addHighlight(location.getIndex(), location.getIndex() + Math.max(1, ex.getContent().length()), errorPainter);
                 } catch (BadLocationException e) {
                     log.error("Can't highlight", ex);
                 }

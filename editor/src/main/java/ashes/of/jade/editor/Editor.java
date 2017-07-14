@@ -41,9 +41,15 @@ public class Editor {
 
         @Provides
         @Singleton
-        public Interpreter interpreter(@Named("interpreter-pool") ForkJoinPool pool) {
+        public Lexer lexer() {
+            return new Lexer();
+        }
+
+        @Provides
+        @Singleton
+        public Interpreter interpreter(Lexer lexer, @Named("interpreter-pool") ForkJoinPool pool) {
             Settings settings = new Settings();
-            Interpreter interpreter = new Interpreter(pool, settings, new Lexer(), new Parser());
+            Interpreter interpreter = new Interpreter(pool, settings, lexer, new Parser());
             return interpreter;
         }
     }

@@ -1,6 +1,5 @@
 package ashes.of.jade.lang.parser;
 
-import ashes.of.jade.lang.Location;
 import ashes.of.jade.lang.lexer.Lexem;
 import ashes.of.jade.lang.nodes.LambdaNode;
 import ashes.of.jade.lang.nodes.Node;
@@ -193,8 +192,6 @@ public class Parser {
     }
 
     private void parseIdentifier(Scope scope, Lexem lexem) {
-        checkIsNotStmtStart(scope, lexem.getLocation());
-
         if (!scope.isEmptyStack() && scope.peekStack().is(NodeType.VAR)) {
             scope.popStack();
             scope.pushStack(createNode(NodeType.STORE, lexem.getLocation(), lexem.getContent()));
@@ -230,8 +227,6 @@ public class Parser {
 
 
     private void parseCurlyOpen(Scope scope, Lexem lexem) {
-        checkIsNotStmtStart(scope, lexem.getLocation());
-
         scope.sequence++;
         scope.pushStack(createNodeFromLexem(lexem));
     }
@@ -253,7 +248,6 @@ public class Parser {
 
 
     private void parseParentOpen(Scope scope, Lexem lexem) {
-        checkIsNotStmtStart(scope, lexem.getLocation());
         scope.pushStack(createNodeFromLexem(lexem));
     }
 
@@ -320,26 +314,5 @@ public class Parser {
 
         scope.drainStackToOut();
         scope.pushOut(createNodeFromLexem(lexem));
-    }
-
-    private void checkIsNotStmtStart(Scope scope, Location location) {
-//        Deque<Node> out = scope.out;
-//        Deque<Node> stack = scope.stack;
-//
-//        if (!out.isEmpty() && checkOut(out.peek()) && !stack.isEmpty() && checkStack(stack.peek()))
-//            throw new ParseException(location, "Statement expected");
-    }
-
-    private boolean checkStack(Node node) {
-        return !(isOperator(node) || isFunction(node) || node.is(NodeType.PARENT_OPEN) || node.is(NodeType.CURLY_OPEN));
-    }
-
-    private boolean checkOut(Node node) {
-        return  node.is(NodeType.LOAD) ||
-                node.is(NodeType.INTEGER) ||
-                node.is(NodeType.DOUBLE) ||
-                node.is(NodeType.SEQUENCE) ||
-                node.is(NodeType.NEWSEQUENCE) ||
-                node.is(NodeType.STRING);
     }
 }

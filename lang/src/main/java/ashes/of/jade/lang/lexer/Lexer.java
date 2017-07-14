@@ -279,32 +279,32 @@ public class Lexer {
         log.debug("Found letters: '{}' at ", token, loc);
         switch (token) {
             case "print":
-                checkIsNewLine(loc, lexems, "Print allowed only as statement start");
+                checkIsNewLine(token, loc, lexems, "Print allowed only as statement start");
                 add(lexems, LexemType.PRINT, loc, "print");
                 break;
 
             case "out":
-                checkIsNewLine(loc, lexems, "Out allowed only as statement start");
+                checkIsNewLine(token, loc, lexems, "Out allowed only as statement start");
                 add(lexems, LexemType.OUT, loc, "out");
                 break;
 
             case "map":
-                checkIsNotNewLine(loc, lexems, "Map isn't allowed as first token");
+                checkIsNotNewLine(token, loc, lexems, "Map isn't allowed as first token");
                 add(lexems, LexemType.MAP, loc, "map");
                 break;
 
             case "reduce":
-                checkIsNotNewLine(loc, lexems, "Reduce isn't allowed as first token");
+                checkIsNotNewLine(token, loc, lexems, "Reduce isn't allowed as first token");
                 add(lexems, LexemType.REDUCE, loc, "reduce");
                 break;
 
             case "var":
-                checkIsNewLine(loc, lexems, "Var allowed only as statement start");
+                checkIsNewLine(token, loc, lexems, "Var allowed only as statement start");
                 add(lexems, LexemType.VAR, loc, "var");
                 break;
 
             default:
-                checkIsNotNewLine(loc, lexems, "Identifier isn't allowed as first token");
+                checkIsNotNewLine(token, loc, lexems, "Identifier isn't allowed as first token");
                 checkIsNotMiddleOfExpr(loc, token, peek(lexems), "Identifier isn't allowed here");
 
                 add(lexems, LexemType.IDENTIFIER, loc, token);
@@ -380,25 +380,27 @@ public class Lexer {
                 LexemType.CURLY_CLOSE, LexemType.PARENT_CLOSE, LexemType.MAP, LexemType.REDUCE);
     }
 
-    private void checkIsNewLine(Location location, List<Lexem> lexems, String message) {
+
+    private void checkIsNewLine(String token, Location location, List<Lexem> lexems, String message) {
         if (!isNewLine(lexems))
-            throw new ParseException(location, message);
+            throw new ParseException(token, location, message);
     }
 
-    private void checkIsNewLine(SourceCode it, List<Lexem> lexems, String message) {
-        if (!isNewLine(lexems))
-            throw new ParseException(it.getLocation(), message);
+
+    private void checkIsNotNewLine(String token, Location location, List<Lexem> lexems, String message) {
+        if (isNewLine(lexems))
+            throw new ParseException(token, location, message);
     }
 
     private void checkIsNotNewLine(Location location, List<Lexem> lexems, String message) {
-        if (isNewLine(lexems))
-            throw new ParseException(location, message);
+        checkIsNotNewLine("", location, lexems, message);
     }
 
     private void checkIsNotNewLine(SourceCode it, List<Lexem> lexems, String message) {
         if (isNewLine(lexems))
             throw new ParseException(it.getLocation(), message);
     }
+
 
     private boolean isNewLine(List<Lexem> lexems) {
         return lexems.isEmpty() || peek(lexems).is(LexemType.NL);

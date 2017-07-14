@@ -8,7 +8,7 @@ public class RunnerState {
     private static final long BACKGROUND_EVAL_TIMEOUT = 2000;
 
     private boolean runNow;
-    private long lastUpdateTime;
+    private long lastUpdateTime = System.currentTimeMillis();
     private long lastEvaluatedTime;
 
     public boolean isRunNow() {
@@ -31,16 +31,16 @@ public class RunnerState {
         return lastEvaluatedTime;
     }
 
-    public void setLastEvaluatedTime(long lastEvaluatedTime) {
-        this.lastEvaluatedTime = lastEvaluatedTime;
+    public void updateLastEvaluatedTime() {
+        this.lastEvaluatedTime = lastUpdateTime;
     }
 
     public void updateTime() {
         lastUpdateTime = System.currentTimeMillis();
     }
 
-    public boolean canRunInBackground(long currentTime) {
-        return !runNow && currentTime - lastUpdateTime > BACKGROUND_EVAL_TIMEOUT &&
+    public boolean canRunInBackground() {
+        return !runNow && System.currentTimeMillis() - lastUpdateTime > BACKGROUND_EVAL_TIMEOUT &&
                 lastUpdateTime != lastEvaluatedTime;
     }
 }

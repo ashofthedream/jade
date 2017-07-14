@@ -38,7 +38,7 @@ public class LexerTest {
     }
 
     @Test
-    public void testMultilineAssign() {
+    public void parseShouldReturnListOfLexemsIfInputIsMultilineAssignmentAndExpr() {
         List<Lexem> actual = lexer.parse(
                 "var first = 1\n" +
                 "var second = 2\n" +
@@ -603,7 +603,7 @@ public class LexerTest {
     }
 
     @Test
-    public void testSimpleAssignToVarA() {
+    public void parseShouldReturnListOfLexemsIfInputIsSimpleAssignment() {
         List<Lexem> lexems = lexer.parse("var a = 1");
 
         List<Lexem> expected = Arrays.asList(

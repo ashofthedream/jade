@@ -288,7 +288,6 @@ public class ParserTest {
     public void testSequenceIdInMapParams() throws Exception {
         String source = "var seq = {0, 3}\n" +
                         "var x = map(seq, e -> e * 2)\n";
-//                        "var x = map(seq, 5)\n";
 
 
         List<Lexem> lexems = lexer.parse(source);
