@@ -69,7 +69,7 @@ public class Scope {
         log.trace("pop  -> {}", node);
 
         if (!predicate.test(node))
-            throw new EvalException(node.getLocation(), "Invalid type: " + message, args);
+            throw new EvalException(node.getContent(), node.getLocation(), "Invalid type: " + message, args);
 
         return node;
     }

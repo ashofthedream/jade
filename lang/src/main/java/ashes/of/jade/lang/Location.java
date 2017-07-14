@@ -5,17 +5,36 @@ public class Location {
     public static final Location EMPTY = new Location(0, 0, 0);
 
     private final int index;
+    private final int length;
+
     private final int line;
     private final int offset;
 
-    public Location(int index, int line, int offset) {
+    public Location(int index, int length, int line, int offset) {
         this.index = index;
+        this.length = length;
         this.line = line;
         this.offset = offset;
     }
 
-    public int getIndex() {
+    public Location(int index, int line, int offset) {
+        this(index, 1, line, offset);
+    }
+
+    public Location withLength(int length) {
+        return new Location(index, length, line, offset);
+    }
+
+    public int getStart() {
         return index;
+    }
+
+    public int getEnd() {
+        return index + length;
+    }
+
+    public int getLength() {
+        return length;
     }
 
     public int getLine() {

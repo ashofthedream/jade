@@ -364,7 +364,7 @@ public class Lexer {
     }
 
     private void add(List<Lexem> lexems, LexemType type, Location location, String content) {
-        add(lexems, new Lexem(type, location, content));
+        add(lexems, new Lexem(type, content.isEmpty() ? location : location.withLength(content.length()), content));
     }
 
 

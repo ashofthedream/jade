@@ -23,6 +23,8 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultHighlighter;
 import javax.swing.text.Highlighter;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
@@ -43,6 +45,7 @@ public class EditorFrame extends JFrame {
     private static final Logger log = LogManager.getLogger(EditorFrame.class);
 
     private final ForkJoinPool pool;
+    private final Lexer lexer;
     private final Interpreter interpreter;
     private final SettingsFrame settings;
 
@@ -89,7 +92,7 @@ public class EditorFrame extends JFrame {
 
     private final DefaultHighlighter.DefaultHighlightPainter valPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.GREEN);
     private final DefaultHighlighter.DefaultHighlightPainter varPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.CYAN);
-    private final DefaultHighlighter.DefaultHighlightPainter functionPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.BLUE);
+    private final DefaultHighlighter.DefaultHighlightPainter functionPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.MAGENTA);
     private final DefaultHighlighter.DefaultHighlightPainter errorPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.RED);
 
 
@@ -107,6 +110,7 @@ public class EditorFrame extends JFrame {
         highlighters.put(LexemType.STRING, valPainter);
         highlighters.put(LexemType.INTEGER, valPainter);
         highlighters.put(LexemType.DOUBLE, valPainter);
+        highlighters.put(LexemType.IDENTIFIER, valPainter);
 
         highlighters.put(LexemType.VAR, varPainter);
 
@@ -117,8 +121,9 @@ public class EditorFrame extends JFrame {
     }
 
     @Inject
-    public EditorFrame(@Named("editor-pool") ForkJoinPool pool, Interpreter interpreter, SettingsFrame settings) {
+    public EditorFrame(@Named("editor-pool") ForkJoinPool pool, Lexer lexer, Interpreter interpreter, SettingsFrame settings) {
         this.pool = pool;
+        this.lexer = lexer;
         this.interpreter = interpreter;
         this.settings = settings;
 
@@ -129,13 +134,13 @@ public class EditorFrame extends JFrame {
         Container container = getContentPane();
 
 
-        exitMenuItem.addActionListener(e -> exitEditorAction());
-        openMenuItem.addActionListener(e -> openFileAction());
+        exitMenuItem.addActionListener(this::exitEditorAction);
+        openMenuItem.addActionListener(this::openFileAction);
         fileMenu.add(openMenuItem);
         fileMenu.add(exitMenuItem);
 
 
-        interpreterSettingsMenuItem.addActionListener(e -> showSettingsFrameAction());
+        interpreterSettingsMenuItem.addActionListener(this::showSettingsFrameAction);
         settingsMenu.add(interpreterSettingsMenuItem);
 
         menuBar.add(fileMenu);
@@ -145,7 +150,7 @@ public class EditorFrame extends JFrame {
         Font font = new Font("Monospaced", Font.PLAIN, 13);
         // main text area
         sourceCodeTextArea.setFont(font);
-        sourceCodeTextArea.addKeyListener(Listeners.onKeyReleased(e -> textAreaKeyReleasedAction()));
+        sourceCodeTextArea.addKeyListener(Listeners.onKeyReleased(this::textAreaKeyReleasedAction));
 
         // bottom text area
         debugTextArea.setBorder(new LineBorder(Color.black));
@@ -155,7 +160,7 @@ public class EditorFrame extends JFrame {
 
         variablesTable.setSize(120, 300);
 
-        runButton.addActionListener(e -> evalAction());
+        runButton.addActionListener(this::evalAction);
 
         container.add(variablesTable, BorderLayout.LINE_END);
         container.add(debugTextArea, BorderLayout.PAGE_END);
@@ -167,7 +172,7 @@ public class EditorFrame extends JFrame {
         setVisible(true);
 
 
-        Timer timer = new Timer(500, e -> backgroundRunnerTimerAction());
+        Timer timer = new Timer(500, this::backgroundTimerAction);
         timer.start();
     }
 
@@ -177,21 +182,57 @@ public class EditorFrame extends JFrame {
      * Action handlers
      */
 
-    private void textAreaKeyReleasedAction() {
+    private void textAreaKeyReleasedAction(KeyEvent event) {
         runnerState.updateTime();
+
+        if (Character.isWhitespace(event.getKeyChar()))
+            highlightCode();
     }
 
-    private void backgroundRunnerTimerAction() {
+    private void highlightCode() {
+        try {
+            List<Lexem> lexems = lexer.parse(sourceCodeTextArea.getText());
+            lexems.forEach(lexem -> {
+                Highlighter highlighter = sourceCodeTextArea.getHighlighter();
+                Location location = lexem.getLocation();
+                try {
+                    DefaultHighlighter.DefaultHighlightPainter painter = highlighters.get(lexem.getType());
+                    if (painter == null)
+                        return;
+
+                    highlighter.addHighlight(location.getStart(), location.getEnd(), painter);
+                } catch (BadLocationException ex) {
+                    log.error("Can't highlight", ex);
+                }
+            });
+
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+        }
+    }
+
+
+    /**
+     * Timer event
+     *
+     * @param event action event
+     */
+    private void backgroundTimerAction(ActionEvent event) {
         if (!runnerState.canRunInBackground()) {
             log.trace("Already running or nothing changed, await");
             return;
         }
 
         runnerState.updateLastEvaluatedTime();
-        evalAction();
+        evalAction(event);
     }
 
-    private void openFileAction() {
+    /**
+     * File for open selected
+     *
+     * @param event action event
+     */
+    private void openFileAction(ActionEvent event) {
         log.debug("openFileAction");
         JFileChooser fileChooser = new JFileChooser();
         int state = fileChooser.showOpenDialog(this);
@@ -214,15 +255,22 @@ public class EditorFrame extends JFrame {
         }
     }
 
-    private void exitEditorAction() {
+    /**
+     * Exit button
+     *
+     * @param event action event
+     */
+    private void exitEditorAction(ActionEvent event) {
         log.debug("exitEditorAction");
         System.exit(0);
     }
 
     /**
      * Show settings frame
+     *
+     * @param event action event
      */
-    private void showSettingsFrameAction() {
+    private void showSettingsFrameAction(ActionEvent event) {
         log.debug("showSettingsFrameAction");
         settings.setVisible(true);
     }
@@ -230,8 +278,10 @@ public class EditorFrame extends JFrame {
 
     /**
      * Run interpreter
+     *
+     * @param event action event
      */
-    private void evalAction() {
+    private void evalAction(ActionEvent event) {
         log.debug("evalAction invoked");
         sourceCodeTextArea.getHighlighter().removeAllHighlights();
 
@@ -241,31 +291,15 @@ public class EditorFrame extends JFrame {
 
 
     private void eval(String sourceCode) {
-
-
         try {
             runnerState.setRunNow(true);
             long start = System.currentTimeMillis();
 
+            highlightCode();
+
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             PrintStream stream = new PrintStream(baos);
             interpreter.getSettings().setOut(stream);
-
-            Lexer lexer = new Lexer();
-            List<Lexem> lexems = lexer.parse(sourceCode);
-            lexems.forEach(lexem -> {
-                Highlighter highlighter = sourceCodeTextArea.getHighlighter();
-                Location location = lexem.getLocation();
-                try {
-                    DefaultHighlighter.DefaultHighlightPainter painter = highlighters.get(lexem.getType());
-                    if (painter == null)
-                        return;
-
-                    highlighter.addHighlight(location.getIndex(), location.getIndex() + Math.max(1, lexem.getContent().length()), painter);
-                } catch (BadLocationException ex) {
-                    log.error("Can't highlight", ex);
-                }
-            });
 
             Scope state = interpreter.eval(sourceCode);
             String output = baos.toString(Charset.defaultCharset().name());
@@ -288,7 +322,14 @@ public class EditorFrame extends JFrame {
                 Highlighter highlighter = sourceCodeTextArea.getHighlighter();
 
                 try {
-                    highlighter.addHighlight(location.getIndex(), location.getIndex() + Math.max(1, ex.getContent().length()), errorPainter);
+
+                    Highlighter.Highlight[] highlights = highlighter.getHighlights();
+                    for (Highlighter.Highlight highlight : highlights) {
+                        if (highlight.getStartOffset() == location.getStart())
+                            highlighter.removeHighlight(highlight);
+                    }
+
+                    highlighter.addHighlight(location.getStart(), location.getEnd(), errorPainter);
                 } catch (BadLocationException e) {
                     log.error("Can't highlight", ex);
                 }
@@ -309,13 +350,13 @@ public class EditorFrame extends JFrame {
 
     private String buildErrorMessage(String sourceCode, ParseException ex) {
         Location location = ex.getLocation();
-        int startLine = location.getIndex();
+        int startLine = location.getStart();
         for (; startLine > 0; startLine--) {
             if (sourceCode.charAt(startLine) == '\n')
                 break;
         }
 
-        int endLine = location.getIndex();
+        int endLine = location.getStart();
         for (; endLine < sourceCode.length(); endLine++) {
             if (sourceCode.charAt(endLine) == '\n')
                 break;
