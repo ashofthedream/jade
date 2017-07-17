@@ -5,6 +5,9 @@ import ashes.of.jade.editor.VariablesTableModel;
 import ashes.of.jade.lang.Location;
 import ashes.of.jade.lang.interpreter.Interpreter;
 import ashes.of.jade.lang.interpreter.Scope;
+import ashes.of.jade.lang.lexer.Lexem;
+import ashes.of.jade.lang.lexer.LexemType;
+import ashes.of.jade.lang.lexer.Lexer;
 import ashes.of.jade.lang.nodes.StringNode;
 import ashes.of.jade.lang.parser.ParseException;
 import org.apache.logging.log4j.LogManager;
@@ -14,21 +17,25 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 import javax.swing.*;
+import javax.swing.Timer;
 import javax.swing.border.LineBorder;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultHighlighter;
+import javax.swing.text.Highlighter;
 import java.awt.*;
-import java.awt.event.ComponentListener;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ForkJoinPool;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.ForkJoinPool;
 
 /**
  * Main frame for editor
@@ -38,6 +45,7 @@ public class EditorFrame extends JFrame {
     private static final Logger log = LogManager.getLogger(EditorFrame.class);
 
     private final ForkJoinPool pool;
+    private final Lexer lexer;
     private final Interpreter interpreter;
     private final SettingsFrame settings;
 
@@ -80,6 +88,14 @@ public class EditorFrame extends JFrame {
     private final RunnerState runnerState = new RunnerState();
 
 
+    private final Map<LexemType, DefaultHighlighter.DefaultHighlightPainter> highlighters = new HashMap<>();
+
+    private final DefaultHighlighter.DefaultHighlightPainter valPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.GREEN);
+    private final DefaultHighlighter.DefaultHighlightPainter varPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.CYAN);
+    private final DefaultHighlighter.DefaultHighlightPainter functionPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.MAGENTA);
+    private final DefaultHighlighter.DefaultHighlightPainter errorPainter = new DefaultHighlighter.DefaultHighlightPainter(Color.RED);
+
+
     {
         String code =
                 "var n = 500\n" +
@@ -89,11 +105,25 @@ public class EditorFrame extends JFrame {
                 "out pi" ;
 
         sourceCodeTextArea.setText(code);
+
+
+        highlighters.put(LexemType.STRING, valPainter);
+        highlighters.put(LexemType.INTEGER, valPainter);
+        highlighters.put(LexemType.DOUBLE, valPainter);
+        highlighters.put(LexemType.IDENTIFIER, valPainter);
+
+        highlighters.put(LexemType.VAR, varPainter);
+
+        highlighters.put(LexemType.MAP, functionPainter);
+        highlighters.put(LexemType.REDUCE, functionPainter);
+        highlighters.put(LexemType.OUT, functionPainter);
+        highlighters.put(LexemType.PRINT, functionPainter);
     }
 
     @Inject
-    public EditorFrame(@Named("editor-pool") ForkJoinPool pool, Interpreter interpreter, SettingsFrame settings) {
+    public EditorFrame(@Named("editor-pool") ForkJoinPool pool, Lexer lexer, Interpreter interpreter, SettingsFrame settings) {
         this.pool = pool;
+        this.lexer = lexer;
         this.interpreter = interpreter;
         this.settings = settings;
 
@@ -104,13 +134,13 @@ public class EditorFrame extends JFrame {
         Container container = getContentPane();
 
 
-        exitMenuItem.addActionListener(e -> exitEditorAction());
-        openMenuItem.addActionListener(e -> openFileAction());
+        exitMenuItem.addActionListener(this::exitEditorAction);
+        openMenuItem.addActionListener(this::openFileAction);
         fileMenu.add(openMenuItem);
         fileMenu.add(exitMenuItem);
 
 
-        interpreterSettingsMenuItem.addActionListener(e -> showSettingsFrameAction());
+        interpreterSettingsMenuItem.addActionListener(this::showSettingsFrameAction);
         settingsMenu.add(interpreterSettingsMenuItem);
 
         menuBar.add(fileMenu);
@@ -120,7 +150,7 @@ public class EditorFrame extends JFrame {
         Font font = new Font("Monospaced", Font.PLAIN, 13);
         // main text area
         sourceCodeTextArea.setFont(font);
-        sourceCodeTextArea.addKeyListener(Listeners.onKeyReleased(e -> runnerState.updateTime()));
+        sourceCodeTextArea.addKeyListener(Listeners.onKeyReleased(this::textAreaKeyReleasedAction));
 
         // bottom text area
         debugTextArea.setBorder(new LineBorder(Color.black));
@@ -130,7 +160,7 @@ public class EditorFrame extends JFrame {
 
         variablesTable.setSize(120, 300);
 
-        runButton.addActionListener(e -> evalAction());
+        runButton.addActionListener(this::evalAction);
 
         container.add(variablesTable, BorderLayout.LINE_END);
         container.add(debugTextArea, BorderLayout.PAGE_END);
@@ -142,20 +172,9 @@ public class EditorFrame extends JFrame {
         setVisible(true);
 
 
-
-        Timer timer = new Timer(2000, e -> {
-            long time = System.currentTimeMillis();
-            if (runnerState.canRunInBackground(time)) {
-                log.trace("Nothing changed, await");
-                return;
-            }
-
-            runnerState.setLastEvaluatedTime(time);
-            evalAction();
-        });
+        Timer timer = new Timer(500, this::backgroundTimerAction);
         timer.start();
     }
-
 
 
 
@@ -163,7 +182,58 @@ public class EditorFrame extends JFrame {
      * Action handlers
      */
 
-    private void openFileAction() {
+    private void textAreaKeyReleasedAction(KeyEvent event) {
+        runnerState.updateTime();
+
+        if (Character.isWhitespace(event.getKeyChar()))
+            highlightCode();
+    }
+
+    private void highlightCode() {
+        try {
+            List<Lexem> lexems = lexer.parse(sourceCodeTextArea.getText());
+            sourceCodeTextArea.getHighlighter().removeAllHighlights();
+            lexems.forEach(lexem -> {
+                Highlighter highlighter = sourceCodeTextArea.getHighlighter();
+                Location location = lexem.getLocation();
+                try {
+                    DefaultHighlighter.DefaultHighlightPainter painter = highlighters.get(lexem.getType());
+                    if (painter == null)
+                        return;
+
+                    highlighter.addHighlight(location.getStart(), location.getEnd(), painter);
+                } catch (BadLocationException ex) {
+                    log.error("Can't highlight", ex);
+                }
+            });
+
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+        }
+    }
+
+
+    /**
+     * Timer event
+     *
+     * @param event action event
+     */
+    private void backgroundTimerAction(ActionEvent event) {
+        if (!runnerState.canRunInBackground()) {
+            log.trace("Already running or nothing changed, await");
+            return;
+        }
+
+        runnerState.updateLastEvaluatedTime();
+        evalAction(event);
+    }
+
+    /**
+     * File for open selected
+     *
+     * @param event action event
+     */
+    private void openFileAction(ActionEvent event) {
         log.debug("openFileAction");
         JFileChooser fileChooser = new JFileChooser();
         int state = fileChooser.showOpenDialog(this);
@@ -186,15 +256,22 @@ public class EditorFrame extends JFrame {
         }
     }
 
-    private void exitEditorAction() {
+    /**
+     * Exit button
+     *
+     * @param event action event
+     */
+    private void exitEditorAction(ActionEvent event) {
         log.debug("exitEditorAction");
         System.exit(0);
     }
 
     /**
      * Show settings frame
+     *
+     * @param event action event
      */
-    private void showSettingsFrameAction() {
+    private void showSettingsFrameAction(ActionEvent event) {
         log.debug("showSettingsFrameAction");
         settings.setVisible(true);
     }
@@ -202,10 +279,11 @@ public class EditorFrame extends JFrame {
 
     /**
      * Run interpreter
+     *
+     * @param event action event
      */
-    private void evalAction() {
+    private void evalAction(ActionEvent event) {
         log.debug("evalAction invoked");
-        sourceCodeTextArea.getHighlighter().removeAllHighlights();
 
         String sourceCode = sourceCodeTextArea.getText();
         pool.submit(() -> eval(sourceCode));
@@ -216,6 +294,8 @@ public class EditorFrame extends JFrame {
         try {
             runnerState.setRunNow(true);
             long start = System.currentTimeMillis();
+
+            highlightCode();
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             PrintStream stream = new PrintStream(baos);
@@ -234,13 +314,21 @@ public class EditorFrame extends JFrame {
             });
 
         } catch (ParseException ex) {
+            log.warn("Can't parse", ex);
             Location location = ex.getLocation();
             String errorMessage = buildErrorMessage(sourceCode, ex);
 
             SwingUtilities.invokeLater(() -> {
-                DefaultHighlighter.DefaultHighlightPainter error = new DefaultHighlighter.DefaultHighlightPainter(Color.red);
+                Highlighter highlighter = sourceCodeTextArea.getHighlighter();
+
                 try {
-                    sourceCodeTextArea.getHighlighter().addHighlight(location.getIndex(), location.getIndex() + 1, error);
+                    Highlighter.Highlight[] highlights = highlighter.getHighlights();
+                    for (Highlighter.Highlight highlight : highlights) {
+                        if (highlight.getStartOffset() == location.getStart())
+                            highlighter.removeHighlight(highlight);
+                    }
+
+                    highlighter.addHighlight(location.getStart(), location.getEnd(), errorPainter);
                 } catch (BadLocationException e) {
                     log.error("Can't highlight", ex);
                 }
@@ -261,13 +349,13 @@ public class EditorFrame extends JFrame {
 
     private String buildErrorMessage(String sourceCode, ParseException ex) {
         Location location = ex.getLocation();
-        int startLine = location.getIndex();
+        int startLine = location.getStart();
         for (; startLine > 0; startLine--) {
             if (sourceCode.charAt(startLine) == '\n')
                 break;
         }
 
-        int endLine = location.getIndex();
+        int endLine = location.getStart();
         for (; endLine < sourceCode.length(); endLine++) {
             if (sourceCode.charAt(endLine) == '\n')
                 break;

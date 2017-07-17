@@ -1,12 +1,46 @@
-package ashes.of.jade.lang;
+package ashes.of.jade.lang.lexer;
+
+
+import ashes.of.jade.lang.Location;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.util.ArrayList;
+import java.util.List;
+
 
 
 public class SourceCode {
+    private static final Logger log = LogManager.getLogger(SourceCode.class);
 
+    /**
+     * Source code
+     */
     private final String source;
+
+    /**
+     * Parsed lexems
+     */
+    private final List<Lexem> lexems = new ArrayList<>();
+
+    /**
+     * Current index
+     */
     private int index = 0;
+
+    /**
+     * Current line number
+     */
     private int line = 1;
+
+    /**
+     * Symbol index in current lint
+     */
     private int offset = 1;
+
+    /**
+     * Index of last new line symbol
+     */
     private int newLine = 0;
 
 
@@ -95,7 +129,7 @@ public class SourceCode {
     }
 
     public boolean isOperator() {
-        return isPlus() ||  isMinus() || isBackSlash() || isStar() || isPower();
+        return isPlus() || isMinus() || isBackSlash() || isStar() || isPower();
     }
 
     public boolean isPlus() {
@@ -118,7 +152,7 @@ public class SourceCode {
         return getChar() == '^';
     }
 
-    public boolean isAssign() {
+    public boolean isEqual() {
         return getChar() == '=';
     }
 
@@ -146,8 +180,40 @@ public class SourceCode {
         return getChar() == '}';
     }
 
+    public boolean isArrow() {
+        return getChar() == '>';
+    }
+
     public String getSource() {
         return source;
+    }
+
+
+    public Lexem pop() {
+        return lexems.remove(lexems.size() - 1);
+    }
+
+    public Lexem peek() {
+        return lexems.get(lexems.size() - 1);
+    }
+
+
+    public void add(Lexem lexem) {
+        log.info("add {}", lexem);
+        lexems.add(lexem);
+    }
+
+    public void add(LexemType type, Location location, String content) {
+        add(new Lexem(type, content.isEmpty() ? location : location.withLength(content.length()), content));
+    }
+
+    public void add(LexemType type, Location location) {
+        add(type, location, "");
+    }
+
+
+    public List<Lexem> getLexems() {
+        return lexems;
     }
 
     @Override

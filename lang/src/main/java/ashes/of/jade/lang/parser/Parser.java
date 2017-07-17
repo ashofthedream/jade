@@ -1,6 +1,5 @@
 package ashes.of.jade.lang.parser;
 
-import ashes.of.jade.lang.Location;
 import ashes.of.jade.lang.lexer.Lexem;
 import ashes.of.jade.lang.nodes.LambdaNode;
 import ashes.of.jade.lang.nodes.Node;
@@ -11,67 +10,12 @@ import org.apache.logging.log4j.Logger;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
-import java.util.function.Predicate;
 
-import static ashes.of.jade.lang.nodes.NodeUtil.createNodeFromLexem;
-import static ashes.of.jade.lang.nodes.NodeUtil.isFunction;
-import static ashes.of.jade.lang.nodes.NodeUtil.isHighPrecedence;
-import static ashes.of.jade.lang.nodes.NodeUtil.isOperator;
+import static ashes.of.jade.lang.nodes.NodeUtil.*;
 
 
 public class Parser {
     private static final Logger log = LogManager.getLogger(Parser.class);
-
-
-    private class Scope {
-        public int function = 0;
-        public int sequence = 0;
-
-        public LambdaNode lambda;
-        public Deque<Node> stack = new ArrayDeque<>();
-        public Deque<Node> out = new ArrayDeque<>();
-
-        public void drainStackToOut(Predicate<Node> predicate) {
-            log.trace("drain stack -> out");
-            while (!stack.isEmpty() && predicate.test(stack.peek()))
-                out.push(stack.pop());
-        }
-
-        public void drainStackToOut() {
-            drainStackToOut(x -> true);
-        }
-
-        public void pushStack(Node node) {
-            log.trace("stack.push {}", node);
-            stack.push(node);
-        }
-
-        public Node popStack() {
-            Node node = stack.pop();
-            log.trace("stack.pop {}");
-            return node;
-        }
-
-        public boolean isEmptyStack() {
-            return stack.isEmpty();
-        }
-
-
-        public void pushOut(Node node) {
-            log.trace("out.push {}", node);
-            out.push(node);
-        }
-
-        public Node popOut() {
-            Node node = out.pop();
-            log.trace("out.pop {}");
-            return node;
-        }
-
-        public boolean isEmptyOut() {
-            return out.isEmpty();
-        }
-    }
 
 
     private final Deque<Scope> scopes = new ArrayDeque<>();
@@ -90,6 +34,7 @@ public class Parser {
      * out pi
      */
     public Deque<Node> parse(List<Lexem> lexems) {
+        log.info("parse lexems: {}", lexems);
         scopes.push(new Scope());
         for (int i = 0; i < lexems.size(); i++) {
             Lexem lexem = lexems.get(i);
@@ -104,12 +49,19 @@ public class Parser {
                 case INTEGER:
                 case DOUBLE:
                 case STRING:
-                case LOAD:
+                    parseVal(current, lexem);
+                    break;
+
+                case IDENTIFIER:
+                    parseIdentifier(current, lexem);
+                    break;
+
+                case VAR:
                     parseVar(current, lexem);
                     break;
 
-                case STORE:
-                    parseStore(current, lexem);
+                case EQUAL:
+                    parseEqual(current, lexem);
                     break;
 
                 case PLUS:
@@ -122,12 +74,9 @@ public class Parser {
 
                 case MAP:
                 case REDUCE:
-                    parseMapAndReduce(current, lexem);
-                    break;
-
                 case OUT:
                 case PRINT:
-                    parsePrintAndOut(current, lexem);
+                    parseFunction(current, lexem);
                     break;
 
                 case CURLY_OPEN:
@@ -161,19 +110,36 @@ public class Parser {
         log.trace("End of parse. stack -> push");
         scope.drainStackToOut();
 
-        log.trace("out   <-- {}", scope.out);
+        log.info("out   <-- {}", scope.out);
         return scope.out;
     }
 
 
-    private void parseVar(Scope scope, Lexem lexem) {
-        checkIsNotStmtStart(scope, lexem.getLocation());
+    private void parseVal(Scope scope, Lexem lexem) {
         scope.pushOut(createNodeFromLexem(lexem));
     }
 
 
-    private void parseStore(Scope scope, Lexem lexem) {
+    private void parseIdentifier(Scope scope, Lexem lexem) {
+        if (!scope.isEmptyStack() && scope.peekStack().is(NodeType.VAR)) {
+            scope.popStack();
+            scope.pushStack(createNode(NodeType.STORE, lexem.getLocation(), lexem.getContent()));
+            return;
+        }
+
+        scope.pushOut(createNode(NodeType.LOAD, lexem.getLocation(), lexem.getContent()));
+    }
+
+
+    private void parseVar(Scope scope, Lexem lexem) {
         scope.pushStack(createNodeFromLexem(lexem));
+    }
+
+
+    private void parseEqual(Scope scope, Lexem lexem) {
+        Node peek = scope.peekStack();
+        if (!peek.is(NodeType.STORE))
+            throw new ParseException(lexem.getLocation(), "Expected var with identifier");
     }
 
 
@@ -184,21 +150,12 @@ public class Parser {
     }
 
 
-    private void parsePrintAndOut(Scope scope, Lexem lexem) {
-        scope.pushStack(createNodeFromLexem(lexem));
-    }
-
-
-    private void parseMapAndReduce(Scope scope, Lexem lexem) {
-        scope.function++;
+    private void parseFunction(Scope scope, Lexem lexem) {
         scope.pushStack(createNodeFromLexem(lexem));
     }
 
 
     private void parseCurlyOpen(Scope scope, Lexem lexem) {
-        checkIsNotStmtStart(scope, lexem.getLocation());
-
-        scope.sequence++;
         scope.pushStack(createNodeFromLexem(lexem));
     }
 
@@ -212,14 +169,12 @@ public class Parser {
             throw new ParseException(lexem.getLocation(), "No sequence start found");
 
         Node open = scope.popStack();
-        scope.sequence--;
         scope.pushOut(new Node(NodeType.NEWSEQUENCE, open.getLocation()));
     }
 
 
 
     private void parseParentOpen(Scope scope, Lexem lexem) {
-        checkIsNotStmtStart(scope, lexem.getLocation());
         scope.pushStack(createNodeFromLexem(lexem));
     }
 
@@ -243,9 +198,8 @@ public class Parser {
 
         scope.popStack();
 
-        if (!scope.isEmptyStack() && isFunction(scope.stack.peek())) {
-            scope.function--;
-            log.trace("ParentClose). Stack isn't empty and .peek is function, decrease ", scope.function);
+        if (!scope.isEmptyStack() && isFunction(scope.peekStack())) {
+            log.trace("ParentClose). Stack isn't empty and .peek is function ");
             scope.pushOut(scope.popStack());
         }
 
@@ -273,39 +227,20 @@ public class Parser {
     private void parseComma(Scope scope, Lexem lexem) {
         scope.drainStackToOut(n -> !n.is(NodeType.PARENT_OPEN) && !n.is(NodeType.CURLY_OPEN));
 
-        if (scope.function > 0) {
-            log.trace("Comma. Scope function={}", scope.function);
+        if (isFunction(scope.lookupStack(lexem.getLocation(), 2))) {
+            log.trace("Function in stack, add comma");
             scope.pushOut(createNodeFromLexem(lexem));
         }
     }
 
 
     private void parseNewLineAndEOF(Scope scope, Lexem lexem) {
-        if (scope.sequence > 0)
+        scope.drainStackToOut(n -> !n.is(NodeType.PARENT_OPEN) && !n.is(NodeType.CURLY_OPEN));
+
+        if (!scope.isEmptyStack())
             throw new ParseException(lexem.getLocation(), "Unexpected EOF");
 
         scope.drainStackToOut();
         scope.pushOut(createNodeFromLexem(lexem));
-    }
-
-    private void checkIsNotStmtStart(Scope scope, Location location) {
-        Deque<Node> out = scope.out;
-        Deque<Node> stack = scope.stack;
-
-        if (!out.isEmpty() && checkOut(out.peek()) && !stack.isEmpty() && checkStack(stack.peek()))
-            throw new ParseException(location, "Statement expected");
-    }
-
-    private boolean checkStack(Node node) {
-        return !(isOperator(node) || isFunction(node) || node.is(NodeType.PARENT_OPEN) || node.is(NodeType.CURLY_OPEN));
-    }
-
-    private boolean checkOut(Node node) {
-        return  node.is(NodeType.LOAD) ||
-                node.is(NodeType.INTEGER) ||
-                node.is(NodeType.DOUBLE) ||
-                node.is(NodeType.SEQUENCE) ||
-                node.is(NodeType.NEWSEQUENCE) ||
-                node.is(NodeType.STRING);
     }
 }

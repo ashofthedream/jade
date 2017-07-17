@@ -31,6 +31,32 @@ public class ParserTest {
     }
 
     @Test
+    public void parserShouldThrowAnExceptionIfOneMoreOpenParenthesisBrace() {
+        try {
+            List<Lexem> lexems = lexer.parse("var x = ((5 + 3)");
+            Deque<Node> rpn = parser.parse(lexems);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(16, 1, 17), e.getLocation());
+        }
+    }
+
+    @Test
+    public void parserShouldThrowAnExceptionIfOneMoreClodeParenthesisBrace() {
+        try {
+            List<Lexem> lexems = lexer.parse("var x = (5 + 3))");
+            Deque<Node> rpn = parser.parse(lexems);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(15, 1, 16), e.getLocation());
+        }
+    }
+
+    @Test
     public void testAssignExprPlusMinusAndMultiply() {
         String source = "var n = (13 + 6 - 7) * 2\n";
 
@@ -76,7 +102,7 @@ public class ParserTest {
 
         List<Lexem> lexems = lexer.parse(source);
         Deque<Node> rpn = parser.parse(lexems);
-
+        log.error("{}", rpn);
         assertValue(rpn, 13);
         {
             assertValue(rpn, 6);
@@ -150,19 +176,6 @@ public class ParserTest {
         }
     }
 
-    @Test
-    public void parseShouldThrowAnExceptionIfExpressionContainsTwoDoublesWithoutOperation() {
-        try {
-            List<Lexem> lexems = lexer.parse("var a = 2.0 0.4");
-            Deque<Node> rpn = parser.parse(lexems);
-
-            fail("Parse should fail");
-        } catch (ParseException e) {
-            log.warn("Can't parse", e);
-            assertEquals(new Location(12, 1, 13), e.getLocation());
-        }
-    }
-
 
     @Test
     public void testAssignDouble() {
@@ -195,7 +208,7 @@ public class ParserTest {
             fail("Parse should fail");
         } catch (ParseException e) {
             log.warn("Can't parse", e);
-            assertEquals(new Location(16, 1, 17), e.getLocation());
+            assertEquals(new Location(15, 1, 16), e.getLocation());
         }
     }
 
@@ -207,7 +220,6 @@ public class ParserTest {
             List<Lexem> lexems = lexer.parse("var seq = {2}");
             Deque<Node> rpn = parser.parse(lexems);
 
-            log.error("Parser should fail, ut output is: {}", rpn);
             fail("Parse should fail");
         } catch (ParseException e) {
             log.warn("Can't parse", e);
@@ -221,7 +233,6 @@ public class ParserTest {
             List<Lexem> lexems = lexer.parse("var seq = {0, 2}}");
             Deque<Node> rpn = parser.parse(lexems);
 
-            log.error("Parser should fail, ut output is: {}", rpn);
             fail("Parse should fail");
         } catch (ParseException e) {
             log.warn("Can't parse", e);
@@ -236,7 +247,6 @@ public class ParserTest {
             List<Lexem> lexems = lexer.parse("var seq = {0, 2} {0, 2}");
             Deque<Node> rpn = parser.parse(lexems);
 
-            log.error("Parser should fail, ut output is: {}", rpn);
             fail("Parse should fail");
         } catch (ParseException e) {
             log.warn("Can't parse", e);
@@ -252,7 +262,6 @@ public class ParserTest {
             List<Lexem> lexems = lexer.parse("print \"hello\" \"world\"");
             Deque<Node> rpn = parser.parse(lexems);
 
-            log.error("Parser should fail, ut output is: {}", rpn);
             fail("Parse should fail");
         } catch (ParseException e) {
             log.warn("Can't parse", e);
@@ -305,7 +314,6 @@ public class ParserTest {
     public void testSequenceIdInMapParams() throws Exception {
         String source = "var seq = {0, 3}\n" +
                         "var x = map(seq, e -> e * 2)\n";
-//                        "var x = map(seq, 5)\n";
 
 
         List<Lexem> lexems = lexer.parse(source);

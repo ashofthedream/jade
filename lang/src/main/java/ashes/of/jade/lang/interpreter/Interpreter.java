@@ -116,8 +116,8 @@ public class Interpreter {
      */
     private void sequence(Node node, Scope scope) {
         scope.checkStackSize(node.getLocation(), 2);
-        Node r = scope.pop(Node::isNumber, "Expected Integer");
-        Node l = scope.pop(Node::isNumber, "Expected Integer");
+        Node r = scope.pop(Node::isInteger, "Expected Integer");
+        Node l = scope.pop(Node::isInteger, "Expected Integer");
 
         SequenceNode seq = new SequenceNode(node.getLocation(), l.toInteger(), r.toInteger());
         scope.push(seq);

@@ -1,5 +1,6 @@
 package ashes.of.jade.lang.nodes;
 
+import ashes.of.jade.lang.Location;
 import ashes.of.jade.lang.lexer.Lexem;
 import ashes.of.jade.lang.lexer.LexemType;
 import ashes.of.jade.lang.parser.ParseException;
@@ -8,7 +9,6 @@ public class NodeUtil {
 
     public static NodeType nodeTypeByLexem(LexemType lexem) {
         switch (lexem) {
-            case VAR:           return null;
             case PRINT:         return NodeType.PRINT;
             case OUT:           return NodeType.OUT;
             case MAP:           return NodeType.MAP;
@@ -21,8 +21,9 @@ public class NodeUtil {
             case DIVIDE:        return NodeType.DIV;
             case POWER:         return NodeType.POWER;
             case REMAINDER:     return null;
-            case STORE:         return NodeType.STORE;
-            case LOAD:          return NodeType.LOAD;
+            case IDENTIFIER:    return NodeType.LOAD;
+            case VAR:           return NodeType.VAR;
+            case EQUAL:         return NodeType.EQUAL;
             case INTEGER:       return NodeType.INTEGER;
             case DOUBLE:        return NodeType.DOUBLE;
             case STRING:        return NodeType.STRING;
@@ -44,38 +45,42 @@ public class NodeUtil {
         if (type == null)
             throw new ParseException(lexem.getLocation(), "Can't create node from lexem");
 
+        return createNode(type, lexem.getLocation(), lexem.getContent());
+    }
+
+    public static Node createNode(NodeType type, Location location, String content) {
         switch (type) {
-            case INTEGER:   return createIntNode(lexem);
-            case DOUBLE:    return createDoubleNode(lexem);
-            case STRING:    return createStringNode(lexem);
-            default:        return new Node(type, lexem.getLocation(), lexem.getContent());
+            case INTEGER:   return createIntNode(location, content);
+            case DOUBLE:    return createDoubleNode(location, content);
+            case STRING:    return createStringNode(location, content);
+            default:        return new Node(type, location, content);
         }
     }
 
-    public static StringNode createStringNode(Lexem lexem) {
-        return new StringNode(lexem.getLocation(), lexem.getContent());
+    private static StringNode createStringNode(Location location, String content) {
+        return new StringNode(location, content);
     }
 
-    public static DoubleNode createDoubleNode(Lexem lexem) {
-        String value = lexem.getContent();
+    private static DoubleNode createDoubleNode(Location location, String content) {
+
         try {
-            return new DoubleNode(lexem.getLocation(), Double.parseDouble(value));
+            return new DoubleNode(location, Double.parseDouble(content));
         } catch (Exception e) {
-            throw new ParseException(lexem.getLocation(), "Invalid double: %s", value);
+            throw new ParseException(location, "Invalid double: %s", content);
         }
     }
 
-    public static IntNode createIntNode(Lexem lexem) {
-        String value = lexem.getContent();
+    private static IntNode createIntNode(Location location, String content) {
+
         try {
-            return new IntNode(lexem.getLocation(), Integer.parseInt(value));
+            return new IntNode(location, Integer.parseInt(content));
         } catch (Exception e) {
-            throw new ParseException(lexem.getLocation(), "Invalid integer: %s", value);
+            throw new ParseException(location, "Invalid integer: %s", content);
         }
     }
 
     
-    public static int precedenceOf(Node node) {
+    private static int precedenceOf(Node node) {
         switch (node.getType()) {
             case ADD:   return 1;
             case SUB:   return 1;

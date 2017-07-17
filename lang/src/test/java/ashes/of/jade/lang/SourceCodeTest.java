@@ -1,5 +1,6 @@
 package ashes.of.jade.lang;
 
+import ashes.of.jade.lang.lexer.SourceCode;
 import org.junit.Test;
 
 import static org.junit.Assert.*;

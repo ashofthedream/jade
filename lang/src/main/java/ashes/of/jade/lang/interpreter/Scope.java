@@ -69,7 +69,7 @@ public class Scope {
         log.trace("pop  -> {}", node);
 
         if (!predicate.test(node))
-            throw new EvalException(node.getLocation(), "Invalid type: " + message, args);
+            throw new EvalException(node.getContent(), node.getLocation(), "Invalid type: " + message, args);
 
         return node;
     }
@@ -77,7 +77,6 @@ public class Scope {
     public void checkStackSize(Location location, int size) {
         if (stack.size() < size)
             throw new EvalException(location, "Stack size %d is less than %d", stack.size(), size);
-
     }
 
     public void checkStackNotEmpty(Location location) {

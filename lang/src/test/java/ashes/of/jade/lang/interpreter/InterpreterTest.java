@@ -79,7 +79,7 @@ public class InterpreterTest {
             fail("Eval should fail");
         } catch (EvalException e) {
             log.warn("Can't eval", e);
-            assertEquals(new Location(0, 1, 1), e.getLocation());
+            assertEquals(new Location(4, 1, 5), e.getLocation());
         }
     }
 
