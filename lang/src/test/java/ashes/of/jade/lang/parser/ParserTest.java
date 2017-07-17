@@ -31,6 +31,32 @@ public class ParserTest {
     }
 
     @Test
+    public void parserShouldThrowAnExceptionIfOneMoreOpenParenthesisBrace() {
+        try {
+            List<Lexem> lexems = lexer.parse("var x = ((5 + 3)");
+            Deque<Node> rpn = parser.parse(lexems);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(16, 1, 17), e.getLocation());
+        }
+    }
+
+    @Test
+    public void parserShouldThrowAnExceptionIfOneMoreClodeParenthesisBrace() {
+        try {
+            List<Lexem> lexems = lexer.parse("var x = (5 + 3))");
+            Deque<Node> rpn = parser.parse(lexems);
+
+            fail("Parse should fail");
+        } catch (ParseException e) {
+            log.warn("Can't parse", e);
+            assertEquals(new Location(15, 1, 16), e.getLocation());
+        }
+    }
+
+    @Test
     public void testAssignExprPlusMinusAndMultiply() {
         String source = "var n = (13 + 6 - 7) * 2\n";
 

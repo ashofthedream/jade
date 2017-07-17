@@ -9,14 +9,38 @@ import java.util.ArrayList;
 import java.util.List;
 
 
+
 public class SourceCode {
     private static final Logger log = LogManager.getLogger(SourceCode.class);
 
-    private final List<Lexem> lexems = new ArrayList<>();
+    /**
+     * Source code
+     */
     private final String source;
+
+    /**
+     * Parsed lexems
+     */
+    private final List<Lexem> lexems = new ArrayList<>();
+
+    /**
+     * Current index
+     */
     private int index = 0;
+
+    /**
+     * Current line number
+     */
     private int line = 1;
+
+    /**
+     * Symbol index in current lint
+     */
     private int offset = 1;
+
+    /**
+     * Index of last new line symbol
+     */
     private int newLine = 0;
 
 

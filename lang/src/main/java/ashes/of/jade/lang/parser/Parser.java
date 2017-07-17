@@ -74,12 +74,9 @@ public class Parser {
 
                 case MAP:
                 case REDUCE:
-                    parseMapAndReduce(current, lexem);
-                    break;
-
                 case OUT:
                 case PRINT:
-                    parsePrintAndOut(current, lexem);
+                    parseFunction(current, lexem);
                     break;
 
                 case CURLY_OPEN:
@@ -117,14 +114,11 @@ public class Parser {
         return scope.out;
     }
 
+
     private void parseVal(Scope scope, Lexem lexem) {
         scope.pushOut(createNodeFromLexem(lexem));
     }
 
-
-    private void parseVar(Scope scope, Lexem lexem) {
-        scope.pushStack(createNodeFromLexem(lexem));
-    }
 
     private void parseIdentifier(Scope scope, Lexem lexem) {
         if (!scope.isEmptyStack() && scope.peekStack().is(NodeType.VAR)) {
@@ -137,11 +131,17 @@ public class Parser {
     }
 
 
+    private void parseVar(Scope scope, Lexem lexem) {
+        scope.pushStack(createNodeFromLexem(lexem));
+    }
+
+
     private void parseEqual(Scope scope, Lexem lexem) {
         Node peek = scope.peekStack();
         if (!peek.is(NodeType.STORE))
             throw new ParseException(lexem.getLocation(), "Expected var with identifier");
     }
+
 
     private void parseOperator(Scope scope, Lexem lexem) {
         Node op = createNodeFromLexem(lexem);
@@ -150,19 +150,12 @@ public class Parser {
     }
 
 
-    private void parsePrintAndOut(Scope scope, Lexem lexem) {
-        scope.pushStack(createNodeFromLexem(lexem));
-    }
-
-
-    private void parseMapAndReduce(Scope scope, Lexem lexem) {
-        scope.function++;
+    private void parseFunction(Scope scope, Lexem lexem) {
         scope.pushStack(createNodeFromLexem(lexem));
     }
 
 
     private void parseCurlyOpen(Scope scope, Lexem lexem) {
-        scope.sequence++;
         scope.pushStack(createNodeFromLexem(lexem));
     }
 
@@ -176,7 +169,6 @@ public class Parser {
             throw new ParseException(lexem.getLocation(), "No sequence start found");
 
         Node open = scope.popStack();
-        scope.sequence--;
         scope.pushOut(new Node(NodeType.NEWSEQUENCE, open.getLocation()));
     }
 
@@ -206,9 +198,8 @@ public class Parser {
 
         scope.popStack();
 
-        if (!scope.isEmptyStack() && isFunction(scope.stack.peek())) {
-            scope.function--;
-            log.trace("ParentClose). Stack isn't empty and .peek is function, decrease ", scope.function);
+        if (!scope.isEmptyStack() && isFunction(scope.peekStack())) {
+            log.trace("ParentClose). Stack isn't empty and .peek is function ");
             scope.pushOut(scope.popStack());
         }
 
@@ -236,15 +227,17 @@ public class Parser {
     private void parseComma(Scope scope, Lexem lexem) {
         scope.drainStackToOut(n -> !n.is(NodeType.PARENT_OPEN) && !n.is(NodeType.CURLY_OPEN));
 
-        if (scope.function > 0) {
-            log.trace("Comma. Scope function={}", scope.function);
+        if (isFunction(scope.lookupStack(lexem.getLocation(), 2))) {
+            log.trace("Function in stack, add comma");
             scope.pushOut(createNodeFromLexem(lexem));
         }
     }
 
 
     private void parseNewLineAndEOF(Scope scope, Lexem lexem) {
-        if (scope.sequence > 0)
+        scope.drainStackToOut(n -> !n.is(NodeType.PARENT_OPEN) && !n.is(NodeType.CURLY_OPEN));
+
+        if (!scope.isEmptyStack())
             throw new ParseException(lexem.getLocation(), "Unexpected EOF");
 
         scope.drainStackToOut();

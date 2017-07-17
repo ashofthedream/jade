@@ -192,6 +192,7 @@ public class EditorFrame extends JFrame {
     private void highlightCode() {
         try {
             List<Lexem> lexems = lexer.parse(sourceCodeTextArea.getText());
+            sourceCodeTextArea.getHighlighter().removeAllHighlights();
             lexems.forEach(lexem -> {
                 Highlighter highlighter = sourceCodeTextArea.getHighlighter();
                 Location location = lexem.getLocation();
@@ -283,7 +284,6 @@ public class EditorFrame extends JFrame {
      */
     private void evalAction(ActionEvent event) {
         log.debug("evalAction invoked");
-        sourceCodeTextArea.getHighlighter().removeAllHighlights();
 
         String sourceCode = sourceCodeTextArea.getText();
         pool.submit(() -> eval(sourceCode));
@@ -322,7 +322,6 @@ public class EditorFrame extends JFrame {
                 Highlighter highlighter = sourceCodeTextArea.getHighlighter();
 
                 try {
-
                     Highlighter.Highlight[] highlights = highlighter.getHighlights();
                     for (Highlighter.Highlight highlight : highlights) {
                         if (highlight.getStartOffset() == location.getStart())
